@@ -101,6 +101,8 @@ public slots:
     void stopIqRecorder();
     bool setGain(QString name, double gain);
     void setRDSstatus(bool enabled);
+    void setNbStatus(int nbid, bool enabled);
+    void setNbThreshold(int nbid, float threshold);
     void rdsPI(QString program_id);
     void setRdsStation(QString name);
     void setRdsRadiotext(QString text);
@@ -121,6 +123,8 @@ signals:
     void dspChanged(bool value);
     void newRDSmode(bool value);
     void newAudioMuted(bool muted);
+    void newNbStatus(int nbid, bool enabled);
+    void newNbThreshold(int nbid, float threshold);
 
 private slots:
     void acceptConnection();
@@ -155,8 +159,11 @@ private:
     bool        hamlib_compatible;
     gain_list_t gains;             /*!< Possible and current gain settings */
     bool        is_audio_muted;
+    bool        nb_status[2];      /*!< Noise blanker NB1/NB2 enabled */
+    float       nb_threshold[2];   /*!< Noise blanker NB1/NB2 threshold */
 
     void        setNewRemoteFreq(qint64 freq);
+    int         nbIdFromName(const QString &name) const;
     int         modeStrToInt(QString mode_str);
     QString     intToModeStr(int mode);
 

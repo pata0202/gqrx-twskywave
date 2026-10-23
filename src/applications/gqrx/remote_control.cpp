@@ -54,6 +54,9 @@ RemoteControl::RemoteControl(QObject *parent) :
     receiver_running = false;
     hamlib_compatible = false;
     is_audio_muted = false;
+    nb_status[0] = nb_status[1] = false;
+    nb_threshold[0] = 3.3f;
+    nb_threshold[1] = 2.5f;
 
     rc_port = DEFAULT_RC_PORT;
     rc_allowed_hosts.append(DEFAULT_RC_ALLOWED_HOSTS);
@@ -366,6 +369,30 @@ void RemoteControl::setSquelchLevel(double level)
     squelch_level = level;
 }
 
+/*! \brief Set noise blanker status (nbid is 1 or 2). */
+void RemoteControl::setNbStatus(int nbid, bool enabled)
+{
+    if (nbid == 1 || nbid == 2)
+        nb_status[nbid - 1] = enabled;
+}
+
+/*! \brief Set noise blanker threshold (nbid is 1 or 2). */
+void RemoteControl::setNbThreshold(int nbid, float threshold)
+{
+    if (nbid == 1 || nbid == 2)
+        nb_threshold[nbid - 1] = threshold;
+}
+
+/*! \brief Map "NB1"/"NB2" to 1/2, anything else to 0. */
+int RemoteControl::nbIdFromName(const QString &name) const
+{
+    if (name.compare("NB1", Qt::CaseInsensitive) == 0)
+        return 1;
+    if (name.compare("NB2", Qt::CaseInsensitive) == 0)
+        return 2;
+    return 0;
+}
+
 /*! \brief Set audio gain (from mainwindow). */
 void RemoteControl::setAudioGain(float gain)
 {
@@ -675,7 +702,11 @@ QString RemoteControl::cmd_get_level(QStringList cmdlist)
         QStringList names;
         for(auto &g : gains)
             names.push_back(QString("%1_GAIN").arg(QString::fromStdString(g.name)));
-        answer = QString("SQL STRENGTH AF %1\n").arg(names.join(" "));
+        answer = QString("SQL STRENGTH AF NB1 NB2 %1\n").arg(names.join(" "));
+    }
+    else if (int nbid = nbIdFromName(lvl))
+    {
+        answer = QString("%1\n").arg((double)nb_threshold[nbid - 1], 0, 'f', 1);
     }
     else if (lvl.compare("STRENGTH", Qt::CaseInsensitive) == 0 || lvl.isEmpty())
     {
@@ -721,7 +752,25 @@ QString RemoteControl::cmd_set_level(QStringList cmdlist)
         QStringList names;
         for(auto &g : gains)
             names.push_back(QString("%1_GAIN").arg(QString::fromStdString(g.name)));
-        answer = QString("SQL AF %1\n").arg(names.join(" "));
+        answer = QString("SQL AF NB1 NB2 %1\n").arg(names.join(" "));
+    }
+    else if (int nbid = nbIdFromName(lvl))
+    {
+        bool ok;
+        float threshold = cmdlist.value(2, "ERR").toFloat(&ok);
+        // Same ranges as rx_nb_cc accepts: NB1 1-20, NB2 0-15
+        float lo = (nbid == 1) ? 1.0f : 0.0f;
+        float hi = (nbid == 1) ? 20.0f : 15.0f;
+        if (ok)
+        {
+            answer = QString("RPRT 0\n");
+            nb_threshold[nbid - 1] = std::max(lo, std::min(hi, threshold));
+            emit newNbThreshold(nbid, nb_threshold[nbid - 1]);
+        }
+        else
+        {
+            answer = QString("RPRT 1\n");
+        }
     }
     else if (lvl.compare("SQL", Qt::CaseInsensitive) == 0)
     {
@@ -779,7 +828,9 @@ QString RemoteControl::cmd_get_func(QStringList cmdlist)
     QString func = cmdlist.value(1, "");
 
     if (func == "?")
-        answer = QString("RECORD IQRECORD DSP RDS MUTE\n");
+        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2\n");
+    else if (int nbid = nbIdFromName(func))
+        answer = QString("%1\n").arg(nb_status[nbid - 1] ? '1' : '0');
     else if (func.compare("RECORD", Qt::CaseInsensitive) == 0)
         answer = QString("%1\n").arg(audio_recorder_status);
     else if (func.compare("IQRECORD", Qt::CaseInsensitive) == 0)
@@ -806,7 +857,14 @@ QString RemoteControl::cmd_set_func(QStringList cmdlist)
 
     if (func == "?")
     {
-        answer = QString("RECORD IQRECORD DSP RDS MUTE\n");
+        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2\n");
+    }
+    else if (nbIdFromName(func) && ok)
+    {
+        int nbid = nbIdFromName(func);
+        nb_status[nbid - 1] = (status != 0);
+        emit newNbStatus(nbid, nb_status[nbid - 1]);
+        answer = QString("RPRT 0\n");
     }
     else if ((func.compare("RECORD", Qt::CaseInsensitive) == 0) && ok)
     {

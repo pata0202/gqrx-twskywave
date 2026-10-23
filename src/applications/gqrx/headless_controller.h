@@ -68,6 +68,8 @@ private slots:
     void onStopIqRecorder();
     void onDspChanged(bool enabled);
     void onNewRdsMode(bool enabled);
+    void onNewNbStatus(int nbid, bool enabled);
+    void onNewNbThreshold(int nbid, float threshold);
 
     /* timers */
     void meterTimeout();
@@ -120,6 +122,13 @@ private:
      * whenever the demodulator is switched.
      */
     double   d_sql_level;
+
+    /* Noise blanker NB1/NB2 (index 0/1). Like squelch these can be changed
+     * at runtime and must be re-applied on demod switch, because switching
+     * to WFM and back recreates the narrow band receiver with NB off.
+     */
+    bool     d_nb_on[2];
+    float    d_nb_threshold[2];
 
     QString  d_iq_rec_dir;
     QString  d_iq_rec_format;

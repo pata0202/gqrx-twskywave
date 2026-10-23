@@ -78,7 +78,9 @@ HeadlessController::HeadlessController(QObject *parent) :
     d_am_dcr(true),
     d_amsync_dcr(true),
     d_amsync_pllbw(1000.0f / 1.0e6f),
-    d_sql_level(-150.0)
+    d_sql_level(-150.0),
+    d_nb_on{false, false},
+    d_nb_threshold{3.3f, 2.5f}
 {
     QByteArray xdg_dir = qgetenv("XDG_CONFIG_HOME");
     if (xdg_dir.isEmpty())
@@ -112,6 +114,8 @@ HeadlessController::HeadlessController(QObject *parent) :
     connect(remote, &RemoteControl::stopIqRecorderEvent, this, &HeadlessController::onStopIqRecorder);
     connect(remote, &RemoteControl::dspChanged, this, &HeadlessController::onDspChanged);
     connect(remote, &RemoteControl::newRDSmode, this, &HeadlessController::onNewRdsMode);
+    connect(remote, &RemoteControl::newNbStatus, this, &HeadlessController::onNewNbStatus);
+    connect(remote, &RemoteControl::newNbThreshold, this, &HeadlessController::onNewNbThreshold);
 }
 
 HeadlessController::~HeadlessController()
@@ -281,6 +285,19 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
     int_val = m_settings->value("receiver/amsync_pllbw", 1000).toInt(&conv_ok);
     d_amsync_pllbw = (conv_ok ? int_val : 1000) / 1.0e6f;
 
+    // Noise blanker (only effective in narrow band modes: AM, SSB, CW, NFM)
+    for (int i = 0; i < 2; i++)
+    {
+        QString key = QString("receiver/nb%1").arg(i + 1);
+        d_nb_on[i] = m_settings->value(key + "_on", false).toBool();
+        float flt_val = m_settings->value(key + "_threshold", d_nb_threshold[i]).toFloat(&conv_ok);
+        if (conv_ok) // same ranges as rx_nb_cc accepts: NB1 1-20, NB2 0-15
+            d_nb_threshold[i] = std::max(i == 0 ? 1.0f : 0.0f,
+                                         std::min(i == 0 ? 20.0f : 15.0f, flt_val));
+        remote->setNbStatus(i + 1, d_nb_on[i]);
+        remote->setNbThreshold(i + 1, d_nb_threshold[i]);
+    }
+
     int mode_idx = RxMode::MODE_AM;
     if (m_settings->contains("receiver/demod"))
     {
@@ -449,6 +466,11 @@ void HeadlessController::selectDemod(int mode_idx)
     rx->set_filter((double)flo, (double)fhi, (receiver::filter_shape)d_filter_shape);
     rx->set_cw_offset(cwofs);
     rx->set_sql_level(d_sql_level);
+    for (int i = 0; i < 2; i++)
+    {
+        rx->set_nb_threshold(i + 1, d_nb_threshold[i]);
+        rx->set_nb_on(i + 1, d_nb_on[i]);
+    }
 
     remote->setMode(mode_idx);
     remote->setPassband(flo, fhi);
@@ -530,6 +552,18 @@ void HeadlessController::onNewSquelchLevel(double level)
 {
     d_sql_level = level;
     rx->set_sql_level(level);
+}
+
+void HeadlessController::onNewNbStatus(int nbid, bool enabled)
+{
+    d_nb_on[nbid - 1] = enabled;
+    rx->set_nb_on(nbid, enabled);
+}
+
+void HeadlessController::onNewNbThreshold(int nbid, float threshold)
+{
+    d_nb_threshold[nbid - 1] = threshold;
+    rx->set_nb_threshold(nbid, threshold);
 }
 
 void HeadlessController::onNewAudioGain(float gain)
