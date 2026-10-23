@@ -136,6 +136,14 @@ private:
     bool     d_nr_on;
     float    d_nr_level;      /*!< Max attenuation in dB */
 
+    /* AGC, config only. Re-applied on demod switch for the same reason. */
+    bool     d_agc_on;
+    bool     d_agc_hang;
+    int      d_agc_threshold;
+    int      d_agc_slope;
+    int      d_agc_decay;
+    int      d_agc_gain;
+
     QString  d_iq_rec_dir;
     QString  d_iq_rec_format;
     QString  d_audio_rec_dir;

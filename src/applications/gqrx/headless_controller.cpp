@@ -82,7 +82,13 @@ HeadlessController::HeadlessController(QObject *parent) :
     d_nb_on{false, false},
     d_nb_threshold{3.3f, 2.5f},
     d_nr_on(false),
-    d_nr_level(10.0f)
+    d_nr_level(10.0f),
+    d_agc_on(true),
+    d_agc_hang(false),
+    d_agc_threshold(-100),
+    d_agc_slope(0),
+    d_agc_decay(500),
+    d_agc_gain(0)
 {
     QByteArray xdg_dir = qgetenv("XDG_CONFIG_HOME");
     if (xdg_dir.isEmpty())
@@ -267,21 +273,23 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
     dbl_val = m_settings->value("receiver/sql_level", 1.0).toDouble(&conv_ok);
     if (conv_ok && dbl_val < 1.0)
         d_sql_level = dbl_val;
+    remote->setSquelchLevel(d_sql_level);
 
+    // AGC: applied in selectDemod()
     int_val = m_settings->value("receiver/agc_threshold", -100).toInt(&conv_ok);
-    rx->set_agc_threshold(conv_ok ? int_val : -100);
+    d_agc_threshold = conv_ok ? int_val : -100;
 
     int_val = m_settings->value("receiver/agc_decay", 500).toInt(&conv_ok);
-    rx->set_agc_decay(conv_ok ? int_val : 500);
+    d_agc_decay = conv_ok ? int_val : 500;
 
     int_val = m_settings->value("receiver/agc_slope", 0).toInt(&conv_ok);
-    rx->set_agc_slope(conv_ok ? int_val : 0);
+    d_agc_slope = conv_ok ? int_val : 0;
 
     int_val = m_settings->value("receiver/agc_gain", 0).toInt(&conv_ok);
-    rx->set_agc_manual_gain(conv_ok ? int_val : 0);
+    d_agc_gain = conv_ok ? int_val : 0;
 
-    rx->set_agc_hang(m_settings->value("receiver/agc_usehang", false).toBool());
-    rx->set_agc_on(!m_settings->value("receiver/agc_off", false).toBool());
+    d_agc_hang = m_settings->value("receiver/agc_usehang", false).toBool();
+    d_agc_on = !m_settings->value("receiver/agc_off", false).toBool();
 
     d_am_dcr = m_settings->value("receiver/am_dcr", true).toBool();
     d_amsync_dcr = m_settings->value("receiver/amsync_dcr", true).toBool();
@@ -341,7 +349,10 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
         int flo = m_settings->value("receiver/filter_low_cut", 0).toInt(&conv_ok);
         int fhi = m_settings->value("receiver/filter_high_cut", 0).toInt(&conv_ok);
         if (conv_ok && mode_idx != RxMode::MODE_OFF && flo != fhi)
+        {
             rx->set_filter((double)flo, (double)fhi, (receiver::filter_shape)d_filter_shape);
+            remote->setPassband(flo, fhi);
+        }
     }
 
     d_iq_rec_dir = m_settings->value("baseband/rec_dir", QDir::homePath()).toString();
@@ -485,6 +496,12 @@ void HeadlessController::selectDemod(int mode_idx)
     }
     rx->set_nr_level(d_nr_level);
     rx->set_nr_on(d_nr_on);
+    rx->set_agc_threshold(d_agc_threshold);
+    rx->set_agc_decay(d_agc_decay);
+    rx->set_agc_slope(d_agc_slope);
+    rx->set_agc_manual_gain(d_agc_gain);
+    rx->set_agc_hang(d_agc_hang);
+    rx->set_agc_on(d_agc_on);
 
     remote->setMode(mode_idx);
     remote->setPassband(flo, fhi);
