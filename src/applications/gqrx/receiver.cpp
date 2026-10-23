@@ -34,7 +34,6 @@
 #include "applications/gqrx/receiver.h"
 #include "dsp/correct_iq_cc.h"
 #include "dsp/filter/fir_decim.h"
-#include "dsp/rx_fft.h"
 #include "receivers/nbrx.h"
 #include "receivers/wfmrx.h"
 
@@ -68,7 +67,6 @@ receiver::receiver(const std::string input_device,
       d_cw_offset(0.0),
       d_recording_iq(false),
       d_recording_wav(false),
-      d_sniffer_active(false),
       d_iq_rev(false),
       d_dc_cancel(false),
       d_iq_balance(false),
@@ -116,14 +114,11 @@ receiver::receiver(const std::string input_device,
 
     iq_swap = make_iq_swap_cc(false);
     dc_corr = make_dc_corr_cc(d_decim_rate, 1.0);
-    iq_fft = make_rx_fft_c(DEFAULT_FFT_SIZE, d_decim_rate, gr::fft::window::WIN_HANN);
+    iq_null_sink = gr::blocks::null_sink::make(sizeof(gr_complex));
 
-    audio_fft = make_rx_fft_f(DEFAULT_FFT_SIZE, d_audio_rate, gr::fft::window::WIN_HANN);
     audio_gain0 = gr::blocks::multiply_const_ff::make(0);
     audio_gain1 = gr::blocks::multiply_const_ff::make(0);
     set_af_gain(DEFAULT_AUDIO_GAIN);
-
-    audio_udp_sink = make_udp_sink_f();
 
 #ifdef WITH_PULSEAUDIO
     audio_snk = make_pa_sink(audio_device, d_audio_rate, "GQRX", "Audio output");
@@ -135,11 +130,7 @@ receiver::receiver(const std::string input_device,
 
     output_devstr = audio_device;
 
-    /* wav sink and source is created when rec/play is started */
-    audio_null_sink0 = gr::blocks::null_sink::make(sizeof(float));
-    audio_null_sink1 = gr::blocks::null_sink::make(sizeof(float));
-    sniffer = make_sniffer_f();
-    /* sniffer_rr is created at each activation. */
+    /* wav sink is created when recording is started */
 
     set_demod(RX_DEMOD_NFM);
 
@@ -362,7 +353,6 @@ double receiver::set_input_rate(double rate)
     dc_corr->set_sample_rate(d_decim_rate);
     ddc->set_decim_and_samp_rate(d_ddc_decim, d_decim_rate);
     rx->set_quad_rate(d_quad_rate);
-    iq_fft->set_quad_rate(d_decim_rate);
     tb->unlock();
 
     return d_input_rate;
@@ -419,7 +409,6 @@ unsigned int receiver::set_input_decim(unsigned int decim)
     dc_corr->set_sample_rate(d_decim_rate);
     ddc->set_decim_and_samp_rate(d_ddc_decim, d_decim_rate);
     rx->set_quad_rate(d_quad_rate);
-    iq_fft->set_quad_rate(d_decim_rate);
 
     if (d_decim >= 2)
     {
@@ -732,39 +721,6 @@ receiver::status receiver::set_freq_corr(double ppm)
 float receiver::get_signal_pwr() const
 {
     return rx->get_signal_level();
-}
-
-/** Set new FFT size. */
-void receiver::set_iq_fft_size(int newsize)
-{
-    iq_fft->set_fft_size(newsize);
-}
-
-unsigned int receiver::iq_fft_size() const
-{
-    return iq_fft->fft_size();
-}
-
-void receiver::set_iq_fft_window(int window_type, bool normalize_energy)
-{
-    iq_fft->set_window_type(window_type, normalize_energy);
-}
-
-/** Get latest baseband FFT data. */
-int receiver::get_iq_fft_data(float* fftPoints)
-{
-    return iq_fft->get_fft_data(fftPoints);
-}
-
-unsigned int receiver::audio_fft_size() const
-{
-    return audio_fft->fft_size();
-}
-
-/** Get latest audio FFT data. */
-int receiver::get_audio_fft_data(float* fftPoints)
-{
-    return audio_fft->get_fft_data(fftPoints);
 }
 
 receiver::status receiver::set_nb_on(int nbid, bool on)
@@ -1095,105 +1051,6 @@ receiver::status receiver::stop_audio_recording()
     return STATUS_OK;
 }
 
-/** Start audio playback. */
-receiver::status receiver::start_audio_playback(const std::string filename)
-{
-    if (!d_running)
-    {
-        /* receiver is not running */
-        std::cout << "Can not start audio playback (receiver not running)" << std::endl;
-
-        return STATUS_ERROR;
-    }
-
-    try {
-        // output ports set automatically from file
-        wav_src = gr::blocks::wavfile_source::make(filename.c_str(), false);
-    }
-    catch (std::runtime_error &e) {
-        std::cout << "Error loading " << filename << ": " << e.what() << std::endl;
-        return STATUS_ERROR;
-    }
-
-    /** FIXME: We can only handle native rate (should maybe use the audio_rr)? */
-    unsigned int audio_rate = (unsigned int) d_audio_rate;
-    if (wav_src->sample_rate() != audio_rate)
-    {
-        std::cout << "BUG: Can not handle sample rate " << wav_src->sample_rate() << std::endl;
-        wav_src.reset();
-
-        return STATUS_ERROR;
-    }
-
-    /** FIXME: We can only handle stereo files */
-    if (wav_src->channels() != 2)
-    {
-        std::cout << "BUG: Can not handle other than 2 channels. File has " << wav_src->channels() << std::endl;
-        wav_src.reset();
-
-        return STATUS_ERROR;
-    }
-
-    stop();
-    /* route demodulator output to null sink */
-    tb->disconnect(rx, 0, audio_gain0, 0);
-    tb->disconnect(rx, 1, audio_gain1, 0);
-    tb->disconnect(rx, 0, audio_fft, 0);
-    tb->disconnect(rx, 0, audio_udp_sink, 0);
-    tb->disconnect(rx, 1, audio_udp_sink, 1);
-    tb->connect(rx, 0, audio_null_sink0, 0); /** FIXME: other channel? */
-    tb->connect(rx, 1, audio_null_sink1, 0); /** FIXME: other channel? */
-    tb->connect(wav_src, 0, audio_gain0, 0);
-    tb->connect(wav_src, 1, audio_gain1, 0);
-    tb->connect(wav_src, 0, audio_fft, 0);
-    tb->connect(wav_src, 0, audio_udp_sink, 0);
-    tb->connect(wav_src, 1, audio_udp_sink, 1);
-    start();
-
-    std::cout << "Playing audio from " << filename << std::endl;
-
-    return STATUS_OK;
-}
-
-/** Stop audio playback. */
-receiver::status receiver::stop_audio_playback()
-{
-    /* disconnect wav source and reconnect receiver */
-    stop();
-    tb->disconnect(wav_src, 0, audio_gain0, 0);
-    tb->disconnect(wav_src, 1, audio_gain1, 0);
-    tb->disconnect(wav_src, 0, audio_fft, 0);
-    tb->disconnect(wav_src, 0, audio_udp_sink, 0);
-    tb->disconnect(wav_src, 1, audio_udp_sink, 1);
-    tb->disconnect(rx, 0, audio_null_sink0, 0);
-    tb->disconnect(rx, 1, audio_null_sink1, 0);
-    tb->connect(rx, 0, audio_gain0, 0);
-    tb->connect(rx, 1, audio_gain1, 0);
-    tb->connect(rx, 0, audio_fft, 0);  /** FIXME: other channel? */
-    tb->connect(rx, 0, audio_udp_sink, 0);
-    tb->connect(rx, 1, audio_udp_sink, 1);
-    start();
-
-    /* delete wav_src since we can not change file name */
-    wav_src.reset();
-
-    return STATUS_OK;
-}
-
-/** Start UDP streaming of audio. */
-receiver::status receiver::start_udp_streaming(const std::string host, int port, bool stereo)
-{
-    audio_udp_sink->start_streaming(host, port, stereo);
-    return STATUS_OK;
-}
-
-/** Stop UDP streaming of audio. */
-receiver::status receiver::stop_udp_streaming()
-{
-    audio_udp_sink->stop_streaming();
-    return STATUS_OK;
-}
-
 /**
  * @brief Start I/Q data recorder.
  * @param filename The filename where to record.
@@ -1251,87 +1108,6 @@ receiver::status receiver::stop_iq_recording()
     return STATUS_OK;
 }
 
-/**
- * @brief Seek to position in IQ file source.
- * @param pos Byte offset from the beginning of the file.
- */
-receiver::status receiver::seek_iq_file(long pos)
-{
-    receiver::status status = STATUS_OK;
-
-    tb->lock();
-
-    if (src->seek(pos, SEEK_SET))
-    {
-        status = STATUS_OK;
-    }
-    else
-    {
-        status = STATUS_ERROR;
-    }
-
-    tb->unlock();
-
-    return status;
-}
-
-/**
- * @brief Start data sniffer.
- * @param buffsize The buffer that should be used in the sniffer.
- * @return STATUS_OK if the sniffer was started, STATUS_ERROR if the sniffer is already in use.
- */
-receiver::status receiver::start_sniffer(unsigned int samprate, int buffsize)
-{
-    if (d_sniffer_active) {
-        /* sniffer already in use */
-        return STATUS_ERROR;
-    }
-
-    sniffer->set_buffer_size(buffsize);
-    sniffer_rr = make_resampler_ff((float)samprate/(float)d_audio_rate);
-    tb->lock();
-    tb->connect(rx, 0, sniffer_rr, 0);
-    tb->connect(sniffer_rr, 0, sniffer, 0);
-    tb->unlock();
-    d_sniffer_active = true;
-
-    return STATUS_OK;
-}
-
-/**
- * @brief Stop data sniffer.
- * @return STATUS_ERROR i the sniffer is not currently active.
- */
-receiver::status receiver::stop_sniffer()
-{
-    if (!d_sniffer_active) {
-        return STATUS_ERROR;
-    }
-
-    tb->lock();
-    tb->disconnect(rx, 0, sniffer_rr, 0);
-
-    // Temporary workaround for https://github.com/gnuradio/gnuradio/issues/5436
-    tb->disconnect(ddc, 0, rx, 0);
-    tb->connect(ddc, 0, rx, 0);
-    // End temporary workaround
-
-    tb->disconnect(sniffer_rr, 0, sniffer, 0);
-    tb->unlock();
-    d_sniffer_active = false;
-
-    /* delete resampler */
-    sniffer_rr.reset();
-
-    return STATUS_OK;
-}
-
-/** Get sniffer data. */
-void receiver::get_sniffer_data(float * outbuff, unsigned int &num)
-{
-    sniffer->get_samples(outbuff, num);
-}
-
 /** Convenience function to connect all blocks. */
 void receiver::connect_all(rx_chain type)
 {
@@ -1362,9 +1138,6 @@ void receiver::connect_all(rx_chain type)
         b = dc_corr;
     }
 
-    // Visualization
-    tb->connect(b, 0, iq_fft, 0);
-
     // RX demod chain
     switch (type)
     {
@@ -1393,28 +1166,24 @@ void receiver::connect_all(rx_chain type)
     {
         tb->connect(b, 0, ddc, 0);
         tb->connect(ddc, 0, rx, 0);
-        tb->connect(rx, 0, audio_fft, 0);
-        tb->connect(rx, 0, audio_udp_sink, 0);
-        tb->connect(rx, 1, audio_udp_sink, 1);
         tb->connect(rx, 0, audio_gain0, 0);
         tb->connect(rx, 1, audio_gain1, 0);
         tb->connect(audio_gain0, 0, audio_snk, 0);
         tb->connect(audio_gain1, 0, audio_snk, 1);
     }
+    else
+    {
+        // The I/Q chain needs a sink, otherwise the flow graph won't start
+        tb->connect(b, 0, iq_null_sink, 0);
+    }
 
-    // Recorders and sniffers
+    // Recorders
     if (d_recording_wav)
     {
         tb->connect(rx, 0, wav_gain0, 0);
         tb->connect(rx, 1, wav_gain1, 0);
         tb->connect(wav_gain0, 0, wav_sink, 0);
         tb->connect(wav_gain1, 0, wav_sink, 1);
-    }
-
-    if (d_sniffer_active)
-    {
-        tb->connect(rx, 0, sniffer_rr, 0);
-        tb->connect(sniffer_rr, 0, sniffer, 0);
     }
 }
 

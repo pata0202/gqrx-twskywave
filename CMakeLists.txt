@@ -140,7 +140,7 @@ include(FindPkgConfig)
 find_package(Gnuradio-osmosdr REQUIRED)
 
 set(GR_REQUIRED_COMPONENTS RUNTIME ANALOG AUDIO BLOCKS DIGITAL FILTER FFT PMT)
-find_package(Gnuradio REQUIRED COMPONENTS analog audio blocks digital filter fft network)
+find_package(Gnuradio REQUIRED COMPONENTS analog audio blocks digital filter fft)
 if(NOT Gnuradio_FOUND)
     message(FATAL_ERROR "GnuRadio Runtime required to compile gqrx")
 endif()
@@ -261,15 +261,6 @@ link_directories(
     ${GNURADIO_RUNTIME_LIBRARY_DIRS}
     ${ICU4C_LIBRARY_DIRS}
 )
-
-# Install desktop
-install(FILES dk.gqrx.gqrx.desktop DESTINATION share/applications)
-
-# Install appstream / metainfo file
-install(FILES dk.gqrx.gqrx.appdata.xml DESTINATION share/metainfo)
-
-# Install icon
-install(FILES resources/icons/dk.gqrx.gqrx.svg DESTINATION share/icons/hicolor/scalable/apps)
 
 # Add subdirectories
 add_subdirectory(src)

@@ -2,7 +2,6 @@
 # Add the source subdirectories
 add_subdirectory(applications)
 add_subdirectory(dsp)
-add_subdirectory(interfaces)
 add_subdirectory(receivers)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -25,21 +24,8 @@ endif()
 get_property(${PROJECT_NAME}_SOURCE GLOBAL PROPERTY SRCS_LIST)
 
 ###############################################################################
-# Resource file - adds an icon to GQRX executable
-if (WIN32)
-    set(ICON_SOURCE ${CMAKE_SOURCE_DIR}/resources/icons/gqrx.ico)
-    set(RES_FILES "${CMAKE_CURRENT_BINARY_DIR}/gqrx.rc")
-    file(WRITE "${RES_FILES}" "id ICON \"${ICON_SOURCE}\"")
-    set(CMAKE_RC_COMPILER_INIT windres)
-    enable_language(RC)
-    set(CMAKE_RC_COMPILE_OBJECT
-        "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
-    list(APPEND RESOURCES_LIST ${RES_FILES})
-endif(WIN32)
-
-###############################################################################
 # Build the program
-add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCE} ${RESOURCES_LIST})
+add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCE})
 if(Qt6_FOUND)
     set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 else()
@@ -67,26 +53,14 @@ target_link_libraries(${PROJECT_NAME}
     ${PORTAUDIO_LIBRARIES}
 )
 
-if(NOT Gnuradio_VERSION VERSION_LESS "3.10")
-    target_link_libraries(${PROJECT_NAME}
-        gnuradio::gnuradio-analog
-        gnuradio::gnuradio-blocks
-        gnuradio::gnuradio-digital
-        gnuradio::gnuradio-filter
-        gnuradio::gnuradio-network
-        gnuradio::gnuradio-audio
-        Volk::volk
-    )
-else()
-    target_link_libraries(${PROJECT_NAME}
-        gnuradio::gnuradio-analog
-        gnuradio::gnuradio-blocks
-        gnuradio::gnuradio-digital
-        gnuradio::gnuradio-filter
-        gnuradio::gnuradio-audio
-        Volk::volk
-    )
-endif()
+target_link_libraries(${PROJECT_NAME}
+    gnuradio::gnuradio-analog
+    gnuradio::gnuradio-blocks
+    gnuradio::gnuradio-digital
+    gnuradio::gnuradio-filter
+    gnuradio::gnuradio-audio
+    Volk::volk
+)
 
 #build a win32 app, not a console app
 if (WIN32)

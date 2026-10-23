@@ -1,10 +1,6 @@
 
 # Add the source files to SRCS_LIST
 add_source_files(SRCS_LIST
-	afsk1200/cafsk12.cpp
-	afsk1200/cafsk12.h
-	afsk1200/costabf.c
-	afsk1200/filter.h
 	filter/fir_decim.cpp
 	filter/fir_decim.h
 	filter/fir_decim_coef.h
@@ -35,8 +31,6 @@ add_source_files(SRCS_LIST
 	rx_demod_am.h
 	rx_demod_fm.cpp
 	rx_demod_fm.h
-	rx_fft.cpp
-	rx_fft.h
 	rx_filter.cpp
 	rx_filter.h
 	rx_meter.cpp
@@ -45,8 +39,6 @@ add_source_files(SRCS_LIST
 	rx_noise_blanker_cc.h
 	rx_rds.cpp
 	rx_rds.h
-	sniffer_f.cpp
-	sniffer_f.h
 	stereo_demod.cpp
 	stereo_demod.h
 )

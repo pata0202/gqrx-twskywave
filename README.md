@@ -1,8 +1,6 @@
 Gqrx
 ====
 
-[![CI](https://github.com/gqrx-sdr/gqrx/workflows/CI/badge.svg)](https://github.com/gqrx-sdr/gqrx/actions?query=workflow%3ACI+branch%3Amaster)
-[![Build](https://github.com/gqrx-sdr/gqrx/workflows/Build/badge.svg)](https://github.com/gqrx-sdr/gqrx/actions?query=workflow%3ABuild+branch%3Amaster)
 
 Gqrx is an open source software defined radio (SDR) receiver implemented using
 [GNU Radio](https://gnuradio.org) and the [Qt GUI toolkit](https://www.qt.io/).
@@ -13,8 +11,6 @@ SoapySDR.
 Gqrx can operate as an AM/FM/SSB receiver with audio output or as an FFT-only
 instrument. There are also various hooks for interacting with external
 applications using network sockets.
-
-![Screenshot of the main Gqrx window](resources/screenshots/gqrx-main.png)
 
 
 Download
@@ -90,7 +86,6 @@ To compile gqrx from source you need the following dependencies:
     - gnuradio-digital
     - gnuradio-fft
     - gnuradio-filter
-    - gnuradio-network (GNU Radio 3.10 only)
     - gnuradio-pmt
 - The gr-iqbalance library (optional)
 - Drivers for the hardware you want to have support for:
@@ -105,10 +100,7 @@ To compile gqrx from source you need the following dependencies:
 - pulseaudio or portaudio (Linux-only and optional)
 - Qt 5 or Qt 6 with the following components:
     - Core
-    - GUI
     - Network
-    - Widgets
-    - Svg (runtime-only)
 - cmake version >= 3.5.0
 
 Gqrx can be compiled from within Qt Creator or in a terminal:
