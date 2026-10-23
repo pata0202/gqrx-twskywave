@@ -292,7 +292,7 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
     int_val = m_settings->value("receiver/amsync_pllbw", 1000).toInt(&conv_ok);
     d_amsync_pllbw = (conv_ok ? int_val : 1000) / 1.0e6f;
 
-    // Noise blanker (only effective in narrow band modes: AM, SSB, CW, NFM)
+    // Noise blanker (no effect while demod is off)
     for (int i = 0; i < 2; i++)
     {
         QString key = QString("receiver/nb%1").arg(i + 1);
@@ -305,7 +305,7 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
         remote->setNbThreshold(i + 1, d_nb_threshold[i]);
     }
 
-    // Audio noise reduction (narrow band modes except raw I/Q)
+    // Audio noise reduction (all demod modes except raw I/Q)
     d_nr_on = m_settings->value("receiver/nr_on", false).toBool();
     float nr_level = m_settings->value("receiver/nr_level", d_nr_level).toFloat(&conv_ok);
     if (conv_ok)
