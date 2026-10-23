@@ -74,3 +74,8 @@ endif (WIN32)
 
 set(INSTALL_DEFAULT_BINDIR "bin" CACHE STRING "Appended to CMAKE_INSTALL_PREFIX")
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${INSTALL_DEFAULT_BINDIR})
+
+# Self-check for the noise reduction block: run with ctest
+add_executable(rx_nr_ff_test dsp/rx_nr_ff_test.cpp dsp/rx_nr_ff.cpp)
+target_link_libraries(rx_nr_ff_test gnuradio::gnuradio-runtime gnuradio::gnuradio-fft)
+add_test(NAME rx_nr_ff COMMAND rx_nr_ff_test)

@@ -57,6 +57,8 @@ RemoteControl::RemoteControl(QObject *parent) :
     nb_status[0] = nb_status[1] = false;
     nb_threshold[0] = 3.3f;
     nb_threshold[1] = 2.5f;
+    nr_status = false;
+    nr_level = 10.0f;
 
     rc_port = DEFAULT_RC_PORT;
     rc_allowed_hosts.append(DEFAULT_RC_ALLOWED_HOSTS);
@@ -383,6 +385,18 @@ void RemoteControl::setNbThreshold(int nbid, float threshold)
         nb_threshold[nbid - 1] = threshold;
 }
 
+/*! \brief Set audio noise reduction status. */
+void RemoteControl::setNrStatus(bool enabled)
+{
+    nr_status = enabled;
+}
+
+/*! \brief Set audio noise reduction level (max attenuation in dB). */
+void RemoteControl::setNrLevel(float level_db)
+{
+    nr_level = level_db;
+}
+
 /*! \brief Map "NB1"/"NB2" to 1/2, anything else to 0. */
 int RemoteControl::nbIdFromName(const QString &name) const
 {
@@ -702,7 +716,11 @@ QString RemoteControl::cmd_get_level(QStringList cmdlist)
         QStringList names;
         for(auto &g : gains)
             names.push_back(QString("%1_GAIN").arg(QString::fromStdString(g.name)));
-        answer = QString("SQL STRENGTH AF NB1 NB2 %1\n").arg(names.join(" "));
+        answer = QString("SQL STRENGTH AF NB1 NB2 NR %1\n").arg(names.join(" "));
+    }
+    else if (lvl.compare("NR", Qt::CaseInsensitive) == 0)
+    {
+        answer = QString("%1\n").arg((double)nr_level, 0, 'f', 1);
     }
     else if (int nbid = nbIdFromName(lvl))
     {
@@ -752,7 +770,22 @@ QString RemoteControl::cmd_set_level(QStringList cmdlist)
         QStringList names;
         for(auto &g : gains)
             names.push_back(QString("%1_GAIN").arg(QString::fromStdString(g.name)));
-        answer = QString("SQL AF NB1 NB2 %1\n").arg(names.join(" "));
+        answer = QString("SQL AF NB1 NB2 NR %1\n").arg(names.join(" "));
+    }
+    else if (lvl.compare("NR", Qt::CaseInsensitive) == 0)
+    {
+        bool ok;
+        float level = cmdlist.value(2, "ERR").toFloat(&ok);
+        if (ok)
+        {
+            answer = QString("RPRT 0\n");
+            nr_level = std::max(0.0f, std::min(20.0f, level));
+            emit newNrLevel(nr_level);
+        }
+        else
+        {
+            answer = QString("RPRT 1\n");
+        }
     }
     else if (int nbid = nbIdFromName(lvl))
     {
@@ -828,9 +861,11 @@ QString RemoteControl::cmd_get_func(QStringList cmdlist)
     QString func = cmdlist.value(1, "");
 
     if (func == "?")
-        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2\n");
+        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2 NR\n");
     else if (int nbid = nbIdFromName(func))
         answer = QString("%1\n").arg(nb_status[nbid - 1] ? '1' : '0');
+    else if (func.compare("NR", Qt::CaseInsensitive) == 0)
+        answer = QString("%1\n").arg(nr_status ? '1' : '0');
     else if (func.compare("RECORD", Qt::CaseInsensitive) == 0)
         answer = QString("%1\n").arg(audio_recorder_status);
     else if (func.compare("IQRECORD", Qt::CaseInsensitive) == 0)
@@ -857,7 +892,13 @@ QString RemoteControl::cmd_set_func(QStringList cmdlist)
 
     if (func == "?")
     {
-        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2\n");
+        answer = QString("RECORD IQRECORD DSP RDS MUTE NB1 NB2 NR\n");
+    }
+    else if ((func.compare("NR", Qt::CaseInsensitive) == 0) && ok)
+    {
+        nr_status = (status != 0);
+        emit newNrStatus(nr_status);
+        answer = QString("RPRT 0\n");
     }
     else if (nbIdFromName(func) && ok)
     {

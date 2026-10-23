@@ -59,6 +59,16 @@ void receiver_base_cf::set_nb_threshold(int nbid, float threshold)
     (void) threshold;
 }
 
+void receiver_base_cf::set_nr_on(bool on)
+{
+    (void) on;
+}
+
+void receiver_base_cf::set_nr_level(float level_db)
+{
+    (void) level_db;
+}
+
 bool receiver_base_cf::has_sql()
 {
     return false;

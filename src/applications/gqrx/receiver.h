@@ -158,6 +158,10 @@ public:
     status      set_nb_on(int nbid, bool on);
     status      set_nb_threshold(int nbid, float threshold);
 
+    /* Audio noise reduction */
+    status      set_nr_on(bool on);
+    status      set_nr_level(float level_db);
+
     /* Squelch parameter */
     status      set_sql_level(double level_db);
     status      set_sql_alpha(double alpha);

@@ -37,6 +37,8 @@ add_source_files(SRCS_LIST
 	rx_meter.h
 	rx_noise_blanker_cc.cpp
 	rx_noise_blanker_cc.h
+	rx_nr_ff.cpp
+	rx_nr_ff.h
 	rx_rds.cpp
 	rx_rds.h
 	stereo_demod.cpp

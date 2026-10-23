@@ -33,6 +33,11 @@ Supported commands:
     Set noise blanker 1 threshold (1.0 - 20.0, default 3.3, lower blanks more)
  L NB2 <threshold>
     Set noise blanker 2 threshold (0.0 - 15.0, default 2.5, lower blanks more)
+ l NR
+    Get noise reduction level [dB]
+ L NR <level>
+    Set noise reduction level: maximum attenuation of background noise
+    (0 - 20 dB, default 10, higher is stronger)
  p RDS_PI
     Get the RDS PI code (in hexadecimal). Returns 0000 if not applicable.
  p RDS_PS_NAME
@@ -65,6 +70,12 @@ Supported commands:
     Set noise blanker to <status>.  Only functions in AM, SSB, CW and NFM
     modes.  Initial values come from receiver/nb1_on, nb1_threshold,
     nb2_on and nb2_threshold in the config file.
+ u NR
+    Get noise reduction status
+ U NR <status>
+    Set noise reduction (reduces background hiss under voice) to <status>.
+    Only functions in AM, SSB, CW and NFM modes.  Initial values come from
+    receiver/nr_on and nr_level in the config file.
  q|Q
     Close connection
  AOS

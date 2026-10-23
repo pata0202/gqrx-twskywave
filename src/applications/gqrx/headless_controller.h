@@ -70,6 +70,8 @@ private slots:
     void onNewRdsMode(bool enabled);
     void onNewNbStatus(int nbid, bool enabled);
     void onNewNbThreshold(int nbid, float threshold);
+    void onNewNrStatus(bool enabled);
+    void onNewNrLevel(float level_db);
 
     /* timers */
     void meterTimeout();
@@ -129,6 +131,10 @@ private:
      */
     bool     d_nb_on[2];
     float    d_nb_threshold[2];
+
+    /* Audio noise reduction, re-applied on demod switch for the same reason */
+    bool     d_nr_on;
+    float    d_nr_level;      /*!< Max attenuation in dB */
 
     QString  d_iq_rec_dir;
     QString  d_iq_rec_format;

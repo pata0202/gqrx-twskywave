@@ -262,6 +262,10 @@ link_directories(
     ${ICU4C_LIBRARY_DIRS}
 )
 
+enable_testing()
+
+enable_testing()
+
 # Add subdirectories
 add_subdirectory(src)
 

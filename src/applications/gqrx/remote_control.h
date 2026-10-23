@@ -103,6 +103,8 @@ public slots:
     void setRDSstatus(bool enabled);
     void setNbStatus(int nbid, bool enabled);
     void setNbThreshold(int nbid, float threshold);
+    void setNrStatus(bool enabled);
+    void setNrLevel(float level_db);
     void rdsPI(QString program_id);
     void setRdsStation(QString name);
     void setRdsRadiotext(QString text);
@@ -125,6 +127,8 @@ signals:
     void newAudioMuted(bool muted);
     void newNbStatus(int nbid, bool enabled);
     void newNbThreshold(int nbid, float threshold);
+    void newNrStatus(bool enabled);
+    void newNrLevel(float level_db);
 
 private slots:
     void acceptConnection();
@@ -161,6 +165,8 @@ private:
     bool        is_audio_muted;
     bool        nb_status[2];      /*!< Noise blanker NB1/NB2 enabled */
     float       nb_threshold[2];   /*!< Noise blanker NB1/NB2 threshold */
+    bool        nr_status;         /*!< Audio noise reduction enabled */
+    float       nr_level;          /*!< Audio noise reduction max attenuation in dB */
 
     void        setNewRemoteFreq(qint64 freq);
     int         nbIdFromName(const QString &name) const;

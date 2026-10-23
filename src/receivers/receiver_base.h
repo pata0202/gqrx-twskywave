@@ -71,6 +71,10 @@ public:
     virtual void set_nb_on(int nbid, bool on);
     virtual void set_nb_threshold(int nbid, float threshold);
 
+    /* Audio noise reduction */
+    virtual void set_nr_on(bool on);
+    virtual void set_nr_level(float level_db);
+
     /* Squelch parameter */
     virtual bool has_sql();
     virtual void set_sql_level(double level_db);

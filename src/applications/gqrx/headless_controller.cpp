@@ -80,7 +80,9 @@ HeadlessController::HeadlessController(QObject *parent) :
     d_amsync_pllbw(1000.0f / 1.0e6f),
     d_sql_level(-150.0),
     d_nb_on{false, false},
-    d_nb_threshold{3.3f, 2.5f}
+    d_nb_threshold{3.3f, 2.5f},
+    d_nr_on(false),
+    d_nr_level(10.0f)
 {
     QByteArray xdg_dir = qgetenv("XDG_CONFIG_HOME");
     if (xdg_dir.isEmpty())
@@ -116,6 +118,8 @@ HeadlessController::HeadlessController(QObject *parent) :
     connect(remote, &RemoteControl::newRDSmode, this, &HeadlessController::onNewRdsMode);
     connect(remote, &RemoteControl::newNbStatus, this, &HeadlessController::onNewNbStatus);
     connect(remote, &RemoteControl::newNbThreshold, this, &HeadlessController::onNewNbThreshold);
+    connect(remote, &RemoteControl::newNrStatus, this, &HeadlessController::onNewNrStatus);
+    connect(remote, &RemoteControl::newNrLevel, this, &HeadlessController::onNewNrLevel);
 }
 
 HeadlessController::~HeadlessController()
@@ -298,6 +302,14 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
         remote->setNbThreshold(i + 1, d_nb_threshold[i]);
     }
 
+    // Audio noise reduction (narrow band modes except raw I/Q)
+    d_nr_on = m_settings->value("receiver/nr_on", false).toBool();
+    float nr_level = m_settings->value("receiver/nr_level", d_nr_level).toFloat(&conv_ok);
+    if (conv_ok)
+        d_nr_level = std::max(0.0f, std::min(20.0f, nr_level));
+    remote->setNrStatus(d_nr_on);
+    remote->setNrLevel(d_nr_level);
+
     int mode_idx = RxMode::MODE_AM;
     if (m_settings->contains("receiver/demod"))
     {
@@ -471,6 +483,8 @@ void HeadlessController::selectDemod(int mode_idx)
         rx->set_nb_threshold(i + 1, d_nb_threshold[i]);
         rx->set_nb_on(i + 1, d_nb_on[i]);
     }
+    rx->set_nr_level(d_nr_level);
+    rx->set_nr_on(d_nr_on);
 
     remote->setMode(mode_idx);
     remote->setPassband(flo, fhi);
@@ -564,6 +578,18 @@ void HeadlessController::onNewNbThreshold(int nbid, float threshold)
 {
     d_nb_threshold[nbid - 1] = threshold;
     rx->set_nb_threshold(nbid, threshold);
+}
+
+void HeadlessController::onNewNrStatus(bool enabled)
+{
+    d_nr_on = enabled;
+    rx->set_nr_on(enabled);
+}
+
+void HeadlessController::onNewNrLevel(float level_db)
+{
+    d_nr_level = level_db;
+    rx->set_nr_level(level_db);
 }
 
 void HeadlessController::onNewAudioGain(float gain)
