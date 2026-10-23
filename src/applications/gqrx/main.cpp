@@ -20,11 +20,12 @@
  * the Free Software Foundation, Inc., 51 Franklin Street,
  * Boston, MA 02110-1301, USA.
  */
-#include <QApplication>
 #include <QCommandLineParser>
+#include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QMessageBox>
+#include <QLoggingCategory>
 #include <QString>
 #include <QStringList>
 #include <QtGlobal>
@@ -37,8 +38,8 @@
 #include <pulse/simple.h>
 #endif
 
-#include "mainwindow.h"
 #include "gqrx.h"
+#include "headless_controller.h"
 
 #include <iostream>
 
@@ -47,51 +48,32 @@ static void list_conf();
 
 int main(int argc, char *argv[])
 {
-    QString         cfg_file;
-    bool            edit_conf = false;
-    int             return_code = 0;
+    QString cfg_file;
 
-    QApplication app(argc, argv);
+    QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationName(GQRX_ORG_NAME);
     QCoreApplication::setOrganizationDomain(GQRX_ORG_DOMAIN);
     QCoreApplication::setApplicationName(GQRX_APP_NAME);
     QCoreApplication::setApplicationVersion(VERSION);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps, true);
-#endif
     QLoggingCategory::setFilterRules("*.debug=false");
-
-    QString plugin_path = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/../soapy-modules");
-    QFileInfo plugin_path_info(plugin_path);
-    if (plugin_path_info.isDir())
-    {
-        qputenv("SOAPY_SDR_PLUGIN_PATH", plugin_path.toUtf8());
-        qputenv("SOAPY_SDR_ROOT", "/invalid");
-        qputenv("CONDA_PREFIX", "/invalid");
-    }
 
     // setup controlport via environment variables
     // see http://lists.gnu.org/archive/html/discuss-gnuradio/2013-05/msg00270.html
-    // Note: tried using gr::prefs().save() but that doesn't have effect until the next time
     if (qputenv("GR_CONF_CONTROLPORT_ON", "False"))
         qDebug() << "Controlport disabled";
     else
         qDebug() << "Failed to disable controlport";
 
     QCommandLineParser parser;
-    parser.setApplicationDescription("Gqrx software defined radio receiver " VERSION);
+    parser.setApplicationDescription(
+        "Gqrx software defined radio receiver " VERSION " (headless)");
     parser.addHelpOption();
     parser.addOptions({
-        {{"s", "style"}, "Use the given style (fusion, windows)", "style"},
         {{"l", "list"}, "List existing configurations"},
         {{"c", "conf"}, "Start with this config file", "file"},
-        {{"e", "edit"}, "Edit the config file before using it"},
         {{"r", "reset"}, "Reset configuration file"},
     });
     parser.process(app);
-
-    if (parser.isSet("style"))
-        QApplication::setStyle(parser.value("style"));
 
     if (parser.isSet("list"))
     {
@@ -101,38 +83,31 @@ int main(int argc, char *argv[])
 
     // check whether audio backend is functional
 #ifdef WITH_PORTAUDIO
-    PaError     err = Pa_Initialize();
-    if (err != paNoError)
+    PaError     pa_err = Pa_Initialize();
+    if (pa_err != paNoError)
     {
-        QString message = QString("Portaudio error: %1").arg(Pa_GetErrorText(err));
-        qCritical() << message;
-        QMessageBox::critical(nullptr, "Audio Error", message,
-                              QMessageBox::Abort, QMessageBox::NoButton);
+        std::cerr << "Portaudio error: " << Pa_GetErrorText(pa_err) << std::endl;
         return 1;
     }
 #endif
 
 #ifdef WITH_PULSEAUDIO
-    int         error = 0;
+    int         pulse_error = 0;
     pa_simple  *test_sink;
     pa_sample_spec ss;
 
     ss.format = PA_SAMPLE_FLOAT32LE;
     ss.rate = 48000;
     ss.channels = 2;
-    test_sink =  pa_simple_new(NULL, "Gqrx Test", PA_STREAM_PLAYBACK, NULL,
-                               "Test stream", &ss, NULL, NULL, &error);
+    test_sink = pa_simple_new(NULL, "Gqrx Test", PA_STREAM_PLAYBACK, NULL,
+                              "Test stream", &ss, NULL, NULL, &pulse_error);
     if (!test_sink)
     {
-        QString message = QString("Pulseaudio error: %1").arg(pa_strerror(error));
-        qCritical() << message;
-        QMessageBox::critical(0, "Audio Error", message,
-                              QMessageBox::Abort, QMessageBox::NoButton);
+        std::cerr << "Pulseaudio error: " << pa_strerror(pulse_error) << std::endl;
         return 1;
     }
     pa_simple_free(test_sink);
 #endif
-
 
     if (parser.isSet("conf"))
     {
@@ -147,34 +122,28 @@ int main(int argc, char *argv[])
 
     if (parser.isSet("reset"))
         reset_conf(cfg_file);
-    else if (parser.isSet("edit"))
-        edit_conf = true;
 
-    try {
-        // Mainwindow will check whether we have a configuration
-        // and open the config dialog if there is none or the specified
-        // file does not exist.
-        MainWindow w(cfg_file, edit_conf);
+    int return_code = 0;
+    try
+    {
+        HeadlessController controller;
 
-        if (w.configOk)
+        if (controller.loadConfig(cfg_file))
         {
-            w.show();
-            return_code = QApplication::exec();
+            std::cout << "gqrx headless running. Press Ctrl+C to stop." << std::endl;
+            return_code = QCoreApplication::exec();
         }
         else
         {
+            std::cerr << "No usable input device configured in " << cfg_file.toStdString()
+                       << ". Set input/device in the config file." << std::endl;
             return_code = 1;
         }
     }
     catch (std::exception &x)
     {
-        QMessageBox::warning(nullptr,
-                         QObject::tr("Crash detected"),
-                         QObject::tr("<p>gqrx exited with an exception:</p>"
-                                     "<p><b>%1</b></p>"
-                                     "<p>More information can be found by launching it from the console.</p>")
-                                 .arg(x.what()),
-                         QMessageBox::Close);
+        std::cerr << "gqrx exited with an exception: " << x.what() << std::endl;
+        return_code = 1;
     }
 
 #ifdef WITH_PORTAUDIO

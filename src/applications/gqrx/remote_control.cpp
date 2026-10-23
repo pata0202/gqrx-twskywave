@@ -26,7 +26,7 @@
 #include <QString>
 #include <QStringList>
 #include "remote_control.h"
-#include "qtgui/dockrxopt.h"
+#include "rx_mode.h"
 
 #define DEFAULT_RC_PORT            7356
 #define DEFAULT_RC_ALLOWED_HOSTS   "127.0.0.1"
@@ -474,63 +474,63 @@ int RemoteControl::modeStrToInt(QString mode_str)
 
     if (mode_str.compare("OFF", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_OFF;
+        mode_int = RxMode::MODE_OFF;
     }
     else if (mode_str.compare("RAW", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_RAW;
+        mode_int = RxMode::MODE_RAW;
     }
     else if (mode_str.compare("AM", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_AM;
+        mode_int = RxMode::MODE_AM;
     }
     else if (mode_str.compare("AMS", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_AM_SYNC;
+        mode_int = RxMode::MODE_AM_SYNC;
     }
     else if (mode_str.compare("LSB", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_LSB;
+        mode_int = RxMode::MODE_LSB;
     }
     else if (mode_str.compare("USB", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_USB;
+        mode_int = RxMode::MODE_USB;
     }
     else if (mode_str.compare("CWL", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_CWL;
+        mode_int = RxMode::MODE_CWL;
         hamlib_compatible = false;
     }
     else if (mode_str.compare("CWR", Qt::CaseInsensitive) == 0)  // "CWR" : "CWL"
     {
-        mode_int = DockRxOpt::MODE_CWL;
+        mode_int = RxMode::MODE_CWL;
         hamlib_compatible = true;
     }
     else if (mode_str.compare("CWU", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_CWU;
+        mode_int = RxMode::MODE_CWU;
         hamlib_compatible = false;
     }
     else if (mode_str.compare("CW", Qt::CaseInsensitive) == 0)  // "CW" : "CWU"
     {
-        mode_int = DockRxOpt::MODE_CWU;
+        mode_int = RxMode::MODE_CWU;
         hamlib_compatible = true;
     }
     else if (mode_str.compare("FM", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_NFM;
+        mode_int = RxMode::MODE_NFM;
     }
     else if (mode_str.compare("WFM", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_WFM_MONO;
+        mode_int = RxMode::MODE_WFM_MONO;
     }
     else if (mode_str.compare("WFM_ST", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_WFM_STEREO;
+        mode_int = RxMode::MODE_WFM_STEREO;
     }
     else if (mode_str.compare("WFM_ST_OIRT", Qt::CaseInsensitive) == 0)
     {
-        mode_int = DockRxOpt::MODE_WFM_STEREO_OIRT;
+        mode_int = RxMode::MODE_WFM_STEREO_OIRT;
     }
     return mode_int;
 }
@@ -545,51 +545,51 @@ QString RemoteControl::intToModeStr(int mode)
 
     switch (mode)
     {
-    case DockRxOpt::MODE_OFF:
+    case RxMode::MODE_OFF:
         mode_str = "OFF";
         break;
 
-    case DockRxOpt::MODE_RAW:
+    case RxMode::MODE_RAW:
         mode_str = "RAW";
         break;
 
-    case DockRxOpt::MODE_AM:
+    case RxMode::MODE_AM:
         mode_str = "AM";
         break;
 
-    case DockRxOpt::MODE_AM_SYNC:
+    case RxMode::MODE_AM_SYNC:
         mode_str = "AMS";
         break;
 
-    case DockRxOpt::MODE_LSB:
+    case RxMode::MODE_LSB:
         mode_str = "LSB";
         break;
 
-    case DockRxOpt::MODE_USB:
+    case RxMode::MODE_USB:
         mode_str = "USB";
         break;
 
-    case DockRxOpt::MODE_CWL:
+    case RxMode::MODE_CWL:
         mode_str = (hamlib_compatible) ? "CWR" : "CWL";
         break;
 
-    case DockRxOpt::MODE_CWU:
+    case RxMode::MODE_CWU:
         mode_str = (hamlib_compatible) ? "CW" : "CWU";
         break;
 
-    case DockRxOpt::MODE_NFM:
+    case RxMode::MODE_NFM:
         mode_str = "FM";
         break;
 
-    case DockRxOpt::MODE_WFM_MONO:
+    case RxMode::MODE_WFM_MONO:
         mode_str = "WFM";
         break;
 
-    case DockRxOpt::MODE_WFM_STEREO:
+    case RxMode::MODE_WFM_STEREO:
         mode_str = "WFM_ST";
         break;
 
-    case DockRxOpt::MODE_WFM_STEREO_OIRT:
+    case RxMode::MODE_WFM_STEREO_OIRT:
         mode_str = "WFM_ST_OIRT";
         break;
 

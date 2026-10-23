@@ -33,7 +33,7 @@
 #include <set>
 
 /* For gain_t and gain_list_t */
-#include "qtgui/dockinputctl.h"
+#include "rx_mode.h"
 
 /*! \brief Simple TCP server for remote control.
  *

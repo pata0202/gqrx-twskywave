@@ -20,8 +20,6 @@
  * the Free Software Foundation, Inc., 51 Franklin Street,
  * Boston, MA 02110-1301, USA.
  */
-#include <QMessageBox>
-#include <QFileDialog>
 #include <cmath>
 #include <gnuradio/io_signature.h>
 #include <gnuradio/filter/firdes.h>

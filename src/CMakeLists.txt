@@ -3,7 +3,6 @@
 add_subdirectory(applications)
 add_subdirectory(dsp)
 add_subdirectory(interfaces)
-add_subdirectory(qtgui)
 add_subdirectory(receivers)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -24,33 +23,6 @@ endif()
 ###############################################################################
 # bring in the global properties
 get_property(${PROJECT_NAME}_SOURCE GLOBAL PROPERTY SRCS_LIST)
-get_property(${PROJECT_NAME}_UI_SOURCE GLOBAL PROPERTY UI_SRCS_LIST)
-
-###############################################################################
-# Process the UI files
-if(Qt6_FOUND)
-    QT_WRAP_UI(UIS_HDRS
-        ${${PROJECT_NAME}_UI_SOURCE}
-    )
-else()
-    QT5_WRAP_UI(UIS_HDRS
-        ${${PROJECT_NAME}_UI_SOURCE}
-    )
-endif()
-
-###############################################################################
-# Process the resources
-if(Qt6_FOUND)
-    QT_ADD_RESOURCES(RESOURCES_LIST
-        ../resources/icons.qrc
-        ../resources/textfiles.qrc
-    )
-else()
-    QT5_ADD_RESOURCES(RESOURCES_LIST
-        ../resources/icons.qrc
-        ../resources/textfiles.qrc
-    )
-endif()
 
 ###############################################################################
 # Resource file - adds an icon to GQRX executable
@@ -67,7 +39,7 @@ endif(WIN32)
 
 ###############################################################################
 # Build the program
-add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCE} ${UIS_HDRS} ${RESOURCES_LIST})
+add_executable(${PROJECT_NAME} ${${PROJECT_NAME}_SOURCE} ${RESOURCES_LIST})
 if(Qt6_FOUND)
     set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 else()
@@ -80,16 +52,11 @@ if(Qt6_FOUND)
     target_link_libraries(${PROJECT_NAME}
         Qt6::Core
         Qt6::Network
-        Qt6::Widgets
-        Qt6::Svg
-        Qt6::SvgWidgets
     )
 else()
     target_link_libraries(${PROJECT_NAME}
         Qt5::Core
         Qt5::Network
-        Qt5::Widgets
-        Qt5::Svg
     )
 endif()
 
