@@ -70,9 +70,6 @@ if(MSVC)
     #needed to dynamically link boost
     add_definitions(-DBOOST_ALL_DYN_LINK)
 
-    #export gr-rds symbols
-    add_definitions(-Dgnuradio_rds_EXPORTS)
-
     if ("${MSVC_VERSION}" VERSION_LESS "1900")
         add_definitions(-D__func__=__FUNCTION__)
     endif()
@@ -140,7 +137,7 @@ include(FindPkgConfig)
 find_package(Gnuradio-osmosdr REQUIRED)
 
 set(GR_REQUIRED_COMPONENTS RUNTIME ANALOG AUDIO BLOCKS DIGITAL FILTER FFT PMT)
-find_package(Gnuradio REQUIRED COMPONENTS analog audio blocks digital filter fft network)
+find_package(Gnuradio REQUIRED COMPONENTS analog audio blocks digital filter fft)
 if(NOT Gnuradio_FOUND)
     message(FATAL_ERROR "GnuRadio Runtime required to compile gqrx")
 endif()
@@ -262,14 +259,9 @@ link_directories(
     ${ICU4C_LIBRARY_DIRS}
 )
 
-# Install desktop
-install(FILES dk.gqrx.gqrx.desktop DESTINATION share/applications)
+enable_testing()
 
-# Install appstream / metainfo file
-install(FILES dk.gqrx.gqrx.appdata.xml DESTINATION share/metainfo)
-
-# Install icon
-install(FILES resources/icons/dk.gqrx.gqrx.svg DESTINATION share/icons/hicolor/scalable/apps)
+enable_testing()
 
 # Add subdirectories
 add_subdirectory(src)

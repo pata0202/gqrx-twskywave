@@ -52,6 +52,7 @@ nbrx::nbrx(float quad_rate, float audio_rate)
     demod_fm = make_rx_demod_fm(PREF_QUAD_RATE, 5000.0, 75.0e-6);
     demod_am = make_rx_demod_am(PREF_QUAD_RATE, true);
     demod_amsync = make_rx_demod_amsync(PREF_QUAD_RATE, true, 0.001);
+    nr = make_rx_nr_ff(PREF_QUAD_RATE);
 
     // Width of rx_filter can be adjusted at run time, so the input buffer (the
     // output buffer of nb) needs to be large enough for the longest history
@@ -78,17 +79,18 @@ nbrx::nbrx(float quad_rate, float audio_rate)
     connect(sql, 0, agc, 0);
     connect(agc, 0, demod, 0);
 
+    connect(demod, 0, nr, 0);
     if (audio_rr0)
     {
-        connect(demod, 0, audio_rr0, 0);
+        connect(nr, 0, audio_rr0, 0);
 
         connect(audio_rr0, 0, self(), 0); // left  channel
         connect(audio_rr0, 0, self(), 1); // right channel
     }
     else
     {
-        connect(demod, 0, self(), 0);
-        connect(demod, 0, self(), 1);
+        connect(nr, 0, self(), 0);
+        connect(nr, 0, self(), 1);
     }
 }
 
@@ -147,6 +149,16 @@ void nbrx::set_nb_threshold(int nbid, float threshold)
         nb->set_threshold1(threshold);
     else if (nbid == 2)
         nb->set_threshold2(threshold);
+}
+
+void nbrx::set_nr_on(bool on)
+{
+    nr->set_enabled(on);
+}
+
+void nbrx::set_nr_level(float level_db)
+{
+    nr->set_level(level_db);
 }
 
 void nbrx::set_sql_level(double level_db)
@@ -215,7 +227,8 @@ void nbrx::set_demod(int rx_demod)
         }
         else
         {
-            disconnect(demod, 0, audio_rr0, 0);
+            disconnect(demod, 0, nr, 0);
+            disconnect(nr, 0, audio_rr0, 0);
 
             disconnect(audio_rr0, 0, self(), 0);
             disconnect(audio_rr0, 0, self(), 1);
@@ -230,8 +243,9 @@ void nbrx::set_demod(int rx_demod)
         }
         else
         {
-            disconnect(demod, 0, self(), 0);
-            disconnect(demod, 0, self(), 1);
+            disconnect(demod, 0, nr, 0);
+            disconnect(nr, 0, self(), 0);
+            disconnect(nr, 0, self(), 1);
         }
     }
 
@@ -277,7 +291,8 @@ void nbrx::set_demod(int rx_demod)
         }
         else
         {
-            connect(demod, 0, audio_rr0, 0);
+            connect(demod, 0, nr, 0);
+            connect(nr, 0, audio_rr0, 0);
 
             connect(audio_rr0, 0, self(), 0);
             connect(audio_rr0, 0, self(), 1);
@@ -292,8 +307,9 @@ void nbrx::set_demod(int rx_demod)
         }
         else
         {
-            connect(demod, 0, self(), 0);
-            connect(demod, 0, self(), 1);
+            connect(demod, 0, nr, 0);
+            connect(nr, 0, self(), 0);
+            connect(nr, 0, self(), 1);
         }
     }
 }

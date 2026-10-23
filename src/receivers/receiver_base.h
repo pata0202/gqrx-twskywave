@@ -71,6 +71,10 @@ public:
     virtual void set_nb_on(int nbid, bool on);
     virtual void set_nb_threshold(int nbid, float threshold);
 
+    /* Audio noise reduction */
+    virtual void set_nr_on(bool on);
+    virtual void set_nr_level(float level_db);
+
     /* Squelch parameter */
     virtual bool has_sql();
     virtual void set_sql_level(double level_db);
@@ -98,13 +102,6 @@ public:
     virtual bool has_amsync();
     virtual void set_amsync_dcr(bool enabled);
     virtual void set_amsync_pll_bw(float pll_bw);
-
-    virtual void get_rds_data(std::string &outbuff, int &num);
-    virtual void start_rds_decoder();
-    virtual void stop_rds_decoder();
-    virtual void reset_rds_parser();
-    virtual bool is_rds_decoder_active();
-
 };
 
 #endif // RECEIVER_BASE_H

@@ -27,7 +27,6 @@
 #include <gnuradio/blocks/multiply_const.h>
 #include <gnuradio/blocks/null_sink.h>
 #include <gnuradio/blocks/wavfile_sink.h>
-#include <gnuradio/blocks/wavfile_source.h>
 #include <gnuradio/top_block.h>
 #include <osmosdr/source.h>
 #include <string>
@@ -41,10 +40,6 @@
 #include "dsp/rx_agc_xx.h"
 #include "dsp/rx_demod_fm.h"
 #include "dsp/rx_demod_am.h"
-#include "dsp/rx_fft.h"
-#include "dsp/sniffer_f.h"
-#include "dsp/resampler_xx.h"
-#include "interfaces/udp_sink_f.h"
 #include "receivers/receiver_base.h"
 
 #ifdef WITH_PULSEAUDIO
@@ -84,18 +79,14 @@ public:
         RX_DEMOD_NONE  = 1,  /*!< No demod. Raw I/Q to audio. */
         RX_DEMOD_AM    = 2,  /*!< Amplitude modulation. */
         RX_DEMOD_NFM   = 3,  /*!< Frequency modulation. */
-        RX_DEMOD_WFM_M = 4,  /*!< Frequency modulation (wide, mono). */
-        RX_DEMOD_WFM_S = 5,  /*!< Frequency modulation (wide, stereo). */
-        RX_DEMOD_WFM_S_OIRT = 6,  /*!< Frequency modulation (wide, stereo oirt). */
         RX_DEMOD_SSB   = 7,  /*!< Single Side Band. */
         RX_DEMOD_AMSYNC = 8  /*!< Amplitude modulation (synchronous demod). */
     };
 
     /** Supported receiver types. */
     enum rx_chain {
-        RX_CHAIN_NONE  = 0,   /*!< No receiver, just spectrum analyzer. */
-        RX_CHAIN_NBRX  = 1,   /*!< Narrow band receiver (AM, FM, SSB). */
-        RX_CHAIN_WFMRX = 2    /*!< Wide band FM receiver (for broadcast). */
+        RX_CHAIN_NONE  = 0,   /*!< No receiver (demod off). */
+        RX_CHAIN_NBRX  = 1    /*!< Narrow band receiver (AM, FM, SSB). */
     };
 
     /** Filter shape (convenience wrappers for "transition width"). */
@@ -104,8 +95,6 @@ public:
         FILTER_SHAPE_NORMAL = 1, /*!< Normal: Transition band is TBD of width. */
         FILTER_SHAPE_SHARP = 2   /*!< Sharp: Transition band is TBD of width. */
     };
-
-    static const unsigned int DEFAULT_FFT_SIZE = 8192;
 
     receiver(const std::string input_device="",
              const std::string audio_device="",
@@ -160,16 +149,14 @@ public:
     status      set_filter(double low, double high, filter_shape shape);
     status      set_freq_corr(double ppm);
     float       get_signal_pwr() const;
-    void        set_iq_fft_size(int newsize);
-    unsigned int iq_fft_size(void) const;
-    void        set_iq_fft_window(int window_type, bool normalize_energy);
-    int         get_iq_fft_data(float* fftPoints);
-    int         get_audio_fft_data(float* fftPoints);
-    unsigned int audio_fft_size(void) const;
 
     /* Noise blanker */
     status      set_nb_on(int nbid, bool on);
     status      set_nb_threshold(int nbid, float threshold);
+
+    /* Audio noise reduction */
+    status      set_nr_on(bool on);
+    status      set_nr_level(float level_db);
 
     /* Squelch parameter */
     status      set_sql_level(double level_db);
@@ -200,31 +187,12 @@ public:
     status      set_af_gain(float gain_db);
     status      start_audio_recording(const std::string filename);
     status      stop_audio_recording();
-    status      start_audio_playback(const std::string filename);
-    status      stop_audio_playback();
 
-    status      start_udp_streaming(const std::string host, int port, bool stereo);
-    status      stop_udp_streaming();
-
-    /* I/Q recording and playback */
+    /* I/Q recording */
     status      start_iq_recording(const std::string filename);
     status      stop_iq_recording();
-    status      seek_iq_file(long pos);
 
-    /* sample sniffer */
-    status      start_sniffer(unsigned int samplrate, int buffsize);
-    status      stop_sniffer();
-    void        get_sniffer_data(float * outbuff, unsigned int &num);
-
-    bool        is_recording_audio(void) const { return d_recording_wav; }
-    bool        is_snifffer_active(void) const { return d_sniffer_active; }
-
-    /* rds functions */
-    void        get_rds_data(std::string &outbuff, int &num);
-    void        start_rds_decoder(void);
-    void        stop_rds_decoder();
-    bool        is_rds_decoder_active(void) const;
-    void        reset_rds_parser(void);
+    bool       is_recording_audio(void) const { return d_recording_wav; }
 
     /* utility functions */
     static std::string escape_filename(std::string filename);
@@ -245,7 +213,6 @@ private:
     double      d_cw_offset;        /*!< CW offset */
     bool        d_recording_iq;     /*!< Whether we are recording I/Q file. */
     bool        d_recording_wav;    /*!< Whether we are recording WAV file. */
-    bool        d_sniffer_active;   /*!< Only one data decoder allowed. */
     bool        d_iq_rev;           /*!< Whether I/Q is reversed or not. */
     bool        d_dc_cancel;        /*!< Enable automatic DC removal. */
     bool        d_iq_balance;       /*!< Enable automatic IQ balance. */
@@ -263,9 +230,7 @@ private:
 
     dc_corr_cc_sptr           dc_corr;   /*!< DC corrector block. */
     iq_swap_cc_sptr           iq_swap;   /*!< I/Q swapping block. */
-
-    rx_fft_c_sptr             iq_fft;     /*!< Baseband FFT block. */
-    rx_fft_f_sptr             audio_fft;  /*!< Audio FFT block. */
+    gr::blocks::null_sink::sptr iq_null_sink; /*!< Terminates the I/Q chain when demod is OFF. */
 
     downconverter_cc_sptr     ddc;        /*!< Digital down-converter for demod chain. */
 
@@ -277,13 +242,6 @@ private:
     gr::blocks::file_sink::sptr         iq_sink;     /*!< I/Q file sink. */
 
     gr::blocks::wavfile_sink::sptr      wav_sink;   /*!< WAV file sink for recording. */
-    gr::blocks::wavfile_source::sptr    wav_src;    /*!< WAV file source for playback. */
-    gr::blocks::null_sink::sptr         audio_null_sink0; /*!< Audio null sink used during playback. */
-    gr::blocks::null_sink::sptr         audio_null_sink1; /*!< Audio null sink used during playback. */
-
-    udp_sink_f_sptr   audio_udp_sink;  /*!< UDP sink to stream audio over the network. */
-    sniffer_f_sptr    sniffer;    /*!< Sample sniffer for data decoders. */
-    resampler_ff_sptr sniffer_rr; /*!< Sniffer resampler. */
 
 #ifdef WITH_PULSEAUDIO
     pa_sink_sptr              audio_snk;  /*!< Pulse audio sink. */

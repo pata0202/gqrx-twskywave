@@ -29,6 +29,7 @@
 #include <gnuradio/blocks/complex_to_real.h>
 #include "receivers/receiver_base.h"
 #include "dsp/rx_noise_blanker_cc.h"
+#include "dsp/rx_nr_ff.h"
 #include "dsp/rx_filter.h"
 #include "dsp/rx_meter.h"
 #include "dsp/rx_agc_xx.h"
@@ -85,6 +86,10 @@ public:
     void set_nb_on(int nbid, bool on);
     void set_nb_threshold(int nbid, float threshold);
 
+    /* Audio noise reduction */
+    void set_nr_on(bool on);
+    void set_nr_level(float level_db);
+
     /* Squelch parameter */
     bool has_sql() { return true; }
     void set_sql_level(double level_db);
@@ -134,6 +139,7 @@ private:
     rx_demod_fm_sptr          demod_fm;   /*!< FM demodulator. */
     rx_demod_am_sptr          demod_am;   /*!< AM demodulator. */
     rx_demod_amsync_sptr      demod_amsync;   /*!< AM-Sync demodulator. */
+    rx_nr_ff_sptr             nr;         /*!< Audio noise reduction (not used for raw I/Q). */
     resampler_ff_sptr         audio_rr0;  /*!< Audio resampler. */
     resampler_ff_sptr         audio_rr1;  /*!< Audio resampler. */
 

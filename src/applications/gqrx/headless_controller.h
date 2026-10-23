@@ -67,11 +67,13 @@ private slots:
     void onStartIqRecorder();
     void onStopIqRecorder();
     void onDspChanged(bool enabled);
-    void onNewRdsMode(bool enabled);
+    void onNewNbStatus(int nbid, bool enabled);
+    void onNewNbThreshold(int nbid, float threshold);
+    void onNewNrStatus(bool enabled);
+    void onNewNrLevel(float level_db);
 
     /* timers */
     void meterTimeout();
-    void rdsTimeout();
 
 private:
     void selectDemod(int mode_idx);
@@ -79,7 +81,6 @@ private:
     void updateGainStages(bool read_from_device);
     void startDsp();
     void stopDsp();
-    void setRdsDecoder(bool enabled);
 
 private:
     receiver        *rx;
@@ -87,7 +88,6 @@ private:
     QSettings        *m_settings;
 
     QTimer  *meter_timer;
-    QTimer  *rds_timer;
 
     QString  m_cfg_dir;
 
@@ -120,6 +120,25 @@ private:
      * whenever the demodulator is switched.
      */
     double   d_sql_level;
+
+    /* Noise blanker NB1/NB2 (index 0/1). Like squelch these can be changed
+     * at runtime; the stored values are re-applied on every demod switch so
+     * the receiver always matches them.
+     */
+    bool     d_nb_on[2];
+    float    d_nb_threshold[2];
+
+    /* Audio noise reduction, re-applied on demod switch the same way */
+    bool     d_nr_on;
+    float    d_nr_level;      /*!< Max attenuation in dB */
+
+    /* AGC, config only. Re-applied on demod switch the same way. */
+    bool     d_agc_on;
+    bool     d_agc_hang;
+    int      d_agc_threshold;
+    int      d_agc_slope;
+    int      d_agc_decay;
+    int      d_agc_gain;
 
     QString  d_iq_rec_dir;
     QString  d_iq_rec_format;

@@ -46,13 +46,13 @@ static const int old2new[] = {
     RxMode::MODE_RAW,
     RxMode::MODE_AM,
     RxMode::MODE_NFM,
-    RxMode::MODE_WFM_MONO,
-    RxMode::MODE_WFM_STEREO,
+    RxMode::MODE_OFF,       // was WFM mono (removed)
+    RxMode::MODE_OFF,       // was WFM stereo (removed)
     RxMode::MODE_LSB,
     RxMode::MODE_USB,
     RxMode::MODE_CWL,
     RxMode::MODE_CWU,
-    RxMode::MODE_WFM_STEREO_OIRT,
+    RxMode::MODE_OFF,       // was WFM stereo OIRT (removed)
     RxMode::MODE_AM_SYNC
 };
 
@@ -62,7 +62,6 @@ HeadlessController::HeadlessController(QObject *parent) :
     remote(nullptr),
     m_settings(nullptr),
     meter_timer(nullptr),
-    rds_timer(nullptr),
     d_lnb_lo(0),
     d_hw_freq(0),
     d_current_freq(0),
@@ -78,7 +77,17 @@ HeadlessController::HeadlessController(QObject *parent) :
     d_am_dcr(true),
     d_amsync_dcr(true),
     d_amsync_pllbw(1000.0f / 1.0e6f),
-    d_sql_level(-150.0)
+    d_sql_level(-150.0),
+    d_nb_on{false, false},
+    d_nb_threshold{3.3f, 2.5f},
+    d_nr_on(false),
+    d_nr_level(10.0f),
+    d_agc_on(true),
+    d_agc_hang(false),
+    d_agc_threshold(-100),
+    d_agc_slope(0),
+    d_agc_decay(500),
+    d_agc_gain(0)
 {
     QByteArray xdg_dir = qgetenv("XDG_CONFIG_HOME");
     if (xdg_dir.isEmpty())
@@ -94,9 +103,6 @@ HeadlessController::HeadlessController(QObject *parent) :
     meter_timer = new QTimer(this);
     connect(meter_timer, &QTimer::timeout, this, &HeadlessController::meterTimeout);
 
-    rds_timer = new QTimer(this);
-    connect(rds_timer, &QTimer::timeout, this, &HeadlessController::rdsTimeout);
-
     connect(remote, &RemoteControl::newFrequency, this, &HeadlessController::onNewFrequency);
     connect(remote, &RemoteControl::newFilterOffset, this, &HeadlessController::onNewFilterOffset);
     connect(remote, &RemoteControl::newLnbLo, this, &HeadlessController::onNewLnbLo);
@@ -111,7 +117,10 @@ HeadlessController::HeadlessController(QObject *parent) :
     connect(remote, &RemoteControl::startIqRecorderEvent, this, &HeadlessController::onStartIqRecorder);
     connect(remote, &RemoteControl::stopIqRecorderEvent, this, &HeadlessController::onStopIqRecorder);
     connect(remote, &RemoteControl::dspChanged, this, &HeadlessController::onDspChanged);
-    connect(remote, &RemoteControl::newRDSmode, this, &HeadlessController::onNewRdsMode);
+    connect(remote, &RemoteControl::newNbStatus, this, &HeadlessController::onNewNbStatus);
+    connect(remote, &RemoteControl::newNbThreshold, this, &HeadlessController::onNewNbThreshold);
+    connect(remote, &RemoteControl::newNrStatus, this, &HeadlessController::onNewNrStatus);
+    connect(remote, &RemoteControl::newNrLevel, this, &HeadlessController::onNewNrLevel);
 }
 
 HeadlessController::~HeadlessController()
@@ -259,27 +268,50 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
     dbl_val = m_settings->value("receiver/sql_level", 1.0).toDouble(&conv_ok);
     if (conv_ok && dbl_val < 1.0)
         d_sql_level = dbl_val;
+    remote->setSquelchLevel(d_sql_level);
 
+    // AGC: applied in selectDemod()
     int_val = m_settings->value("receiver/agc_threshold", -100).toInt(&conv_ok);
-    rx->set_agc_threshold(conv_ok ? int_val : -100);
+    d_agc_threshold = conv_ok ? int_val : -100;
 
     int_val = m_settings->value("receiver/agc_decay", 500).toInt(&conv_ok);
-    rx->set_agc_decay(conv_ok ? int_val : 500);
+    d_agc_decay = conv_ok ? int_val : 500;
 
     int_val = m_settings->value("receiver/agc_slope", 0).toInt(&conv_ok);
-    rx->set_agc_slope(conv_ok ? int_val : 0);
+    d_agc_slope = conv_ok ? int_val : 0;
 
     int_val = m_settings->value("receiver/agc_gain", 0).toInt(&conv_ok);
-    rx->set_agc_manual_gain(conv_ok ? int_val : 0);
+    d_agc_gain = conv_ok ? int_val : 0;
 
-    rx->set_agc_hang(m_settings->value("receiver/agc_usehang", false).toBool());
-    rx->set_agc_on(!m_settings->value("receiver/agc_off", false).toBool());
+    d_agc_hang = m_settings->value("receiver/agc_usehang", false).toBool();
+    d_agc_on = !m_settings->value("receiver/agc_off", false).toBool();
 
     d_am_dcr = m_settings->value("receiver/am_dcr", true).toBool();
     d_amsync_dcr = m_settings->value("receiver/amsync_dcr", true).toBool();
 
     int_val = m_settings->value("receiver/amsync_pllbw", 1000).toInt(&conv_ok);
     d_amsync_pllbw = (conv_ok ? int_val : 1000) / 1.0e6f;
+
+    // Noise blanker (no effect while demod is off)
+    for (int i = 0; i < 2; i++)
+    {
+        QString key = QString("receiver/nb%1").arg(i + 1);
+        d_nb_on[i] = m_settings->value(key + "_on", false).toBool();
+        float flt_val = m_settings->value(key + "_threshold", d_nb_threshold[i]).toFloat(&conv_ok);
+        if (conv_ok) // same ranges as rx_nb_cc accepts: NB1 1-20, NB2 0-15
+            d_nb_threshold[i] = std::max(i == 0 ? 1.0f : 0.0f,
+                                         std::min(i == 0 ? 20.0f : 15.0f, flt_val));
+        remote->setNbStatus(i + 1, d_nb_on[i]);
+        remote->setNbThreshold(i + 1, d_nb_threshold[i]);
+    }
+
+    // Audio noise reduction (all demod modes except raw I/Q)
+    d_nr_on = m_settings->value("receiver/nr_on", false).toBool();
+    float nr_level = m_settings->value("receiver/nr_level", d_nr_level).toFloat(&conv_ok);
+    if (conv_ok)
+        d_nr_level = std::max(0.0f, std::min(20.0f, nr_level));
+    remote->setNrStatus(d_nr_on);
+    remote->setNrLevel(d_nr_level);
 
     int mode_idx = RxMode::MODE_AM;
     if (m_settings->contains("receiver/demod"))
@@ -312,7 +344,10 @@ bool HeadlessController::loadConfig(const QString &cfgfile)
         int flo = m_settings->value("receiver/filter_low_cut", 0).toInt(&conv_ok);
         int fhi = m_settings->value("receiver/filter_high_cut", 0).toInt(&conv_ok);
         if (conv_ok && mode_idx != RxMode::MODE_OFF && flo != fhi)
+        {
             rx->set_filter((double)flo, (double)fhi, (receiver::filter_shape)d_filter_shape);
+            remote->setPassband(flo, fhi);
+        }
     }
 
     d_iq_rec_dir = m_settings->value("baseband/rec_dir", QDir::homePath()).toString();
@@ -378,10 +413,6 @@ void HeadlessController::selectDemod(int mode_idx)
 
     RxMode::getFilterPreset(mode_idx, d_filter_preset, &flo, &fhi);
 
-    bool rds_enabled = rx->is_rds_decoder_active();
-    if (rds_enabled)
-        setRdsDecoder(false);
-
     switch (mode_idx)
     {
     case RxMode::MODE_OFF:
@@ -410,20 +441,6 @@ void HeadlessController::selectDemod(int mode_idx)
         rx->set_fm_deemph(d_fm_deemph);
         break;
 
-    case RxMode::MODE_WFM_MONO:
-    case RxMode::MODE_WFM_STEREO:
-    case RxMode::MODE_WFM_STEREO_OIRT:
-        if (mode_idx == RxMode::MODE_WFM_MONO)
-            rx->set_demod(receiver::RX_DEMOD_WFM_M);
-        else if (mode_idx == RxMode::MODE_WFM_STEREO_OIRT)
-            rx->set_demod(receiver::RX_DEMOD_WFM_S_OIRT);
-        else
-            rx->set_demod(receiver::RX_DEMOD_WFM_S);
-
-        if (rds_enabled)
-            setRdsDecoder(true);
-        break;
-
     case RxMode::MODE_LSB:
     case RxMode::MODE_USB:
         rx->set_demod(receiver::RX_DEMOD_SSB);
@@ -449,6 +466,19 @@ void HeadlessController::selectDemod(int mode_idx)
     rx->set_filter((double)flo, (double)fhi, (receiver::filter_shape)d_filter_shape);
     rx->set_cw_offset(cwofs);
     rx->set_sql_level(d_sql_level);
+    for (int i = 0; i < 2; i++)
+    {
+        rx->set_nb_threshold(i + 1, d_nb_threshold[i]);
+        rx->set_nb_on(i + 1, d_nb_on[i]);
+    }
+    rx->set_nr_level(d_nr_level);
+    rx->set_nr_on(d_nr_on);
+    rx->set_agc_threshold(d_agc_threshold);
+    rx->set_agc_decay(d_agc_decay);
+    rx->set_agc_slope(d_agc_slope);
+    rx->set_agc_manual_gain(d_agc_gain);
+    rx->set_agc_hang(d_agc_hang);
+    rx->set_agc_on(d_agc_on);
 
     remote->setMode(mode_idx);
     remote->setPassband(flo, fhi);
@@ -483,9 +513,6 @@ void HeadlessController::onNewFilterOffset(qint64 offset)
 {
     rx->set_filter_offset((double)offset);
     d_current_freq = d_hw_freq + d_lnb_lo + offset;
-
-    if (rx->is_rds_decoder_active())
-        rx->reset_rds_parser();
 }
 
 void HeadlessController::onNewLnbLo(double freq_mhz)
@@ -530,6 +557,30 @@ void HeadlessController::onNewSquelchLevel(double level)
 {
     d_sql_level = level;
     rx->set_sql_level(level);
+}
+
+void HeadlessController::onNewNbStatus(int nbid, bool enabled)
+{
+    d_nb_on[nbid - 1] = enabled;
+    rx->set_nb_on(nbid, enabled);
+}
+
+void HeadlessController::onNewNbThreshold(int nbid, float threshold)
+{
+    d_nb_threshold[nbid - 1] = threshold;
+    rx->set_nb_threshold(nbid, threshold);
+}
+
+void HeadlessController::onNewNrStatus(bool enabled)
+{
+    d_nr_on = enabled;
+    rx->set_nr_on(enabled);
+}
+
+void HeadlessController::onNewNrLevel(float level_db)
+{
+    d_nr_level = level_db;
+    rx->set_nr_level(level_db);
 }
 
 void HeadlessController::onNewAudioGain(float gain)
@@ -662,29 +713,6 @@ void HeadlessController::onDspChanged(bool enabled)
         stopDsp();
 }
 
-void HeadlessController::setRdsDecoder(bool enabled)
-{
-    if (enabled)
-    {
-        qInfo() << "Starting RDS decoder";
-        rx->start_rds_decoder();
-        rx->reset_rds_parser();
-        rds_timer->start(250);
-    }
-    else
-    {
-        qInfo() << "Stopping RDS decoder";
-        rx->stop_rds_decoder();
-        rds_timer->stop();
-    }
-    remote->setRDSstatus(enabled);
-}
-
-void HeadlessController::onNewRdsMode(bool enabled)
-{
-    setRdsDecoder(enabled);
-}
-
 void HeadlessController::startDsp()
 {
     remote->setReceiverStatus(true);
@@ -696,8 +724,6 @@ void HeadlessController::stopDsp()
 {
     if (meter_timer)
         meter_timer->stop();
-    if (rds_timer)
-        rds_timer->stop();
     if (rx)
         rx->stop();
     if (remote)
@@ -707,33 +733,4 @@ void HeadlessController::stopDsp()
 void HeadlessController::meterTimeout()
 {
     remote->setSignalLevel(rx->get_signal_pwr());
-}
-
-void HeadlessController::rdsTimeout()
-{
-    std::string buffer;
-    int type;
-
-    rx->get_rds_data(buffer, type);
-    while (type != -1)
-    {
-        QString text = QString::fromStdString(buffer);
-        switch (type)
-        {
-        case 0: // PI
-            remote->rdsPI(text);
-            break;
-        case 1: // PS (station name)
-            remote->setRdsStation(text);
-            break;
-        case 4: // RadioText
-            remote->setRdsRadiotext(text);
-            break;
-        default:
-            // PTY, flags, clocktime and alternative frequencies are not
-            // exposed over the remote control protocol.
-            break;
-        }
-        rx->get_rds_data(buffer, type);
-    }
 }
