@@ -4,15 +4,6 @@ add_source_files(SRCS_LIST
 	filter/fir_decim.cpp
 	filter/fir_decim.h
 	filter/fir_decim_coef.h
-	rds/api.h
-	rds/constants.h
-	rds/decoder_impl.cc
-	rds/decoder_impl.h
-	rds/decoder.h
-	rds/parser_impl.cc
-	rds/parser_impl.h
-	rds/parser.h
-	rds/tmc_events.h
 	agc_impl.cpp
 	agc_impl.h
 	correct_iq_cc.cpp
@@ -21,8 +12,6 @@ add_source_files(SRCS_LIST
 	downconverter.h
 	fm_deemph.cpp
 	fm_deemph.h
-	lpf.cpp
-	lpf.h
 	resampler_xx.cpp
 	resampler_xx.h
 	rx_agc_xx.cpp
@@ -39,8 +28,4 @@ add_source_files(SRCS_LIST
 	rx_noise_blanker_cc.h
 	rx_nr_ff.cpp
 	rx_nr_ff.h
-	rx_rds.cpp
-	rx_rds.h
-	stereo_demod.cpp
-	stereo_demod.h
 )

@@ -15,8 +15,7 @@ gqrx-twskywave
 
 - **硬體**：支援 gr-osmosdr 能驅動的 SDR，例如 RTL-SDR、Airspy、HackRF、
   BladeRF、SoapySDR、USRP。
-- **解調模式**：AM、AM-Sync、LSB/USB、CW、窄頻 FM、廣播 FM（含立體聲與 RDS）、
-  原始 I/Q。
+- **解調模式**：AM、AM-Sync、LSB/USB、CW、窄頻 FM、原始 I/Q。
 - **降噪**：溫和的頻譜降噪，壓低講話底下的背景沙沙聲，以保持人聲自然為優先，
   延遲約 5 毫秒。詳見下方〈降噪〉。
 - **雜訊抑制器**：去除短暫的脈衝雜訊（喀喀聲、啪啪聲），分 NB1、NB2 兩種。
@@ -31,6 +30,7 @@ gqrx-twskywave
 |---|---|
 | Qt 圖形介面、頻譜和瀑布圖 | 改成無介面、遠端控制 |
 | UDP 音訊串流、WAV 回放、AFSK1200 解碼 | 只在圖形介面裡用得到 |
+| 廣播 FM（WFM、立體聲）與 RDS | 航空頻段用不到 |
 | 圖示、桌面捷徑、AppImage 和 macOS 打包腳本 | 同上 |
 
 | 新增的 | |
@@ -119,7 +119,7 @@ allowed_hosts=127.0.0.1
 | `input/sample_rate` | 取樣率（Hz） |
 | `input/frequency` | 啟動時的頻率（Hz） |
 | `input/hwagc` | 硬體自動增益 |
-| `receiver/demod` | `AM`、`AM-Sync`、`LSB`、`USB`、`CW-L`、`CW-U`、`Narrow FM`、`WFM (mono)`、`WFM (stereo)`、`WFM (oirt)`、`Raw I/Q`、`Demod Off` |
+| `receiver/demod` | `AM`、`AM-Sync`、`LSB`、`USB`、`CW-L`、`CW-U`、`Narrow FM`、`Raw I/Q`、`Demod Off` |
 | `receiver/filter_low_cut`、`filter_high_cut` | 濾波範圍（Hz，相對中心頻率）。ATC 用 ±4000 左右 |
 | `receiver/sql_level` | 靜音門檻（dBFS），訊號低於此值時靜音 |
 | `receiver/nr_on`、`nr_level` | 降噪開關、最大壓低量（0–20 dB，預設 10） |
@@ -196,7 +196,7 @@ print(rc("l STRENGTH"))   # 讀訊號強度（dBFS）
 - 持續追蹤背景噪音（取每個頻率約 1.5 秒內的最低點），不需要等沒人講話的空檔。
 - 壓低幅度隨時間平滑變化，而且有下限（`nr_level`，預設最多壓 10 dB），避免人聲
   出現悶悶的、像在水裡講話或機械聲的感覺。
-- 只在 AM、SSB、CW、窄頻 FM 有作用（廣播 FM 和原始 I/Q 不經過降噪）。
+- 在 AM、AM-Sync、SSB、CW、窄頻 FM 都有作用（原始 I/Q 不經過降噪）。
 
 實測（模擬的 AM 訊號 + 白噪音）：level 10 時噪音降低約 10 dB，level 20 時約
 20 dB；人聲頻率的音量在單元測試中幾乎不變（-0.04 dB），整台接收機實測約 0–1.3 dB

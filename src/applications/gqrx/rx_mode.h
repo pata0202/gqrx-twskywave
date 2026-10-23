@@ -74,10 +74,7 @@ enum rxopt_mode_idx {
     MODE_CWL        = 6, /*!< CW using LSB filter. */
     MODE_CWU        = 7, /*!< CW using USB filter. */
     MODE_NFM        = 8, /*!< Narrow band FM. */
-    MODE_WFM_MONO   = 9, /*!< Broadcast FM (mono). */
-    MODE_WFM_STEREO = 10, /*!< Broadcast FM (stereo). */
-    MODE_WFM_STEREO_OIRT = 11, /*!< Broadcast FM (stereo oirt). */
-    MODE_LAST       = 12
+    MODE_LAST       = 9
 };
 
 /*! \brief Get filter lo/hi for a given mode and preset (0=wide, 1=normal, 2=narrow). */

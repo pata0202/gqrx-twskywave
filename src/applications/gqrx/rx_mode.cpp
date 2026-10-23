@@ -38,10 +38,7 @@ static const int filter_preset_table[MODE_LAST][3][2] =
     {{    100,   4000}, {   100,  2800}, {   300,  2400}},  // MODE_USB
     {{  -1000,   1000}, {  -250,   250}, {  -100,   100}},  // MODE_CWL
     {{  -1000,   1000}, {  -250,   250}, {  -100,   100}},  // MODE_CWU
-    {{ -10000,  10000}, { -5000,  5000}, { -2500,  2500}},  // MODE_NFM
-    {{-100000, 100000}, {-80000, 80000}, {-60000, 60000}},  // MODE_WFM_MONO
-    {{-100000, 100000}, {-80000, 80000}, {-60000, 60000}},  // MODE_WFM_STEREO
-    {{-100000, 100000}, {-80000, 80000}, {-60000, 60000}}   // MODE_WFM_STEREO_OIRT
+    {{ -10000,  10000}, { -5000,  5000}, { -2500,  2500}}   // MODE_NFM
 };
 
 static QStringList ModulationStrings()
@@ -57,9 +54,6 @@ static QStringList ModulationStrings()
     list.append("CW-L");
     list.append("CW-U");
     list.append("Narrow FM");
-    list.append("WFM (mono)");
-    list.append("WFM (stereo)");
-    list.append("WFM (oirt)");
     return list;
 }
 

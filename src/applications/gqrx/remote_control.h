@@ -100,14 +100,10 @@ public slots:
     void startIqRecorder(QString unused1, QString unused2);
     void stopIqRecorder();
     bool setGain(QString name, double gain);
-    void setRDSstatus(bool enabled);
     void setNbStatus(int nbid, bool enabled);
     void setNbThreshold(int nbid, float threshold);
     void setNrStatus(bool enabled);
     void setNrLevel(float level_db);
-    void rdsPI(QString program_id);
-    void setRdsStation(QString name);
-    void setRdsRadiotext(QString text);
 
 signals:
     void newFrequency(qint64 freq);
@@ -123,7 +119,6 @@ signals:
     void stopIqRecorderEvent();
     void gainChanged(QString name, double value);
     void dspChanged(bool value);
-    void newRDSmode(bool value);
     void newAudioMuted(bool muted);
     void newNbStatus(int nbid, bool enabled);
     void newNbThreshold(int nbid, float threshold);
@@ -150,13 +145,9 @@ private:
     int         rc_mode;           /*!< Current mode. */
     int         rc_passband_lo;    /*!< Current low cutoff. */
     int         rc_passband_hi;    /*!< Current high cutoff. */
-    bool        rds_status;        /*!< RDS decoder enabled */
     float       signal_level;      /*!< Signal level in dBFS */
     double      squelch_level;     /*!< Squelch level in dBFS */
     float       audio_gain;        /*!< Audio gain in dB */
-    QString     rc_program_id;     /*!< RDS Program identification */
-    QString     rds_station;       /*!< RDS program service (station) name */
-    QString     rds_radiotext;     /*!< RDS Radiotext */
     bool        audio_recorder_status; /*!< Audio recording enabled */
     bool        iq_recorder_status;    /*!< IQ recording enabled */
     bool        receiver_running;  /*!< Whether the receiver is running or not */
@@ -187,7 +178,6 @@ private:
     QString     cmd_get_split_vfo() const;
     QString     cmd_set_split_vfo();
     QString     cmd_get_info() const;
-    QString     cmd_get_param(QStringList cmdlist);
     QString     cmd_AOS();
     QString     cmd_LOS();
     QString     cmd_lnb_lo(QStringList cmdlist);

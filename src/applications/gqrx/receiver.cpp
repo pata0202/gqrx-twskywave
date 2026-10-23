@@ -35,7 +35,6 @@
 #include "dsp/correct_iq_cc.h"
 #include "dsp/filter/fir_decim.h"
 #include "receivers/nbrx.h"
-#include "receivers/wfmrx.h"
 
 #ifdef WITH_PULSEAUDIO
 #include "pulseaudio/pa_sink.h"
@@ -872,21 +871,6 @@ receiver::status receiver::set_demod(rx_demod demod, bool force)
         rx->set_demod(nbrx::NBRX_DEMOD_FM);
         break;
 
-    case RX_DEMOD_WFM_M:
-        connect_all(RX_CHAIN_WFMRX);
-        rx->set_demod(wfmrx::WFMRX_DEMOD_MONO);
-        break;
-
-    case RX_DEMOD_WFM_S:
-        connect_all(RX_CHAIN_WFMRX);
-        rx->set_demod(wfmrx::WFMRX_DEMOD_STEREO);
-        break;
-
-    case RX_DEMOD_WFM_S_OIRT:
-        connect_all(RX_CHAIN_WFMRX);
-        rx->set_demod(wfmrx::WFMRX_DEMOD_STEREO_UKW);
-        break;
-
     case RX_DEMOD_SSB:
         connect_all(RX_CHAIN_NBRX);
         rx->set_demod(nbrx::NBRX_DEMOD_SSB);
@@ -1150,29 +1134,6 @@ void receiver::connect_all(rx_chain type)
         b = dc_corr;
     }
 
-    // RX demod chain
-    switch (type)
-    {
-    case RX_CHAIN_NBRX:
-        if (rx->name() != "NBRX")
-        {
-            rx.reset();
-            rx = make_nbrx(d_quad_rate, d_audio_rate);
-        }
-        break;
-
-    case RX_CHAIN_WFMRX:
-        if (rx->name() != "WFMRX")
-        {
-            rx.reset();
-            rx = make_wfmrx(d_quad_rate, d_audio_rate);
-        }
-        break;
-
-    default:
-        break;
-    }
-
     // Audio path (if there is a receiver)
     if (type != RX_CHAIN_NONE)
     {
@@ -1197,49 +1158,6 @@ void receiver::connect_all(rx_chain type)
         tb->connect(wav_gain0, 0, wav_sink, 0);
         tb->connect(wav_gain1, 0, wav_sink, 1);
     }
-}
-
-void receiver::get_rds_data(std::string &outbuff, int &num)
-{
-    rx->get_rds_data(outbuff, num);
-}
-
-void receiver::start_rds_decoder(void)
-{
-    if (d_running)
-    {
-        stop();
-        rx->start_rds_decoder();
-        start();
-    }
-    else
-    {
-        rx->start_rds_decoder();
-    }
-}
-
-void receiver::stop_rds_decoder(void)
-{
-    if (d_running)
-    {
-        stop();
-        rx->stop_rds_decoder();
-        start();
-    }
-    else
-    {
-        rx->stop_rds_decoder();
-    }
-}
-
-bool receiver::is_rds_decoder_active(void) const
-{
-    return rx->is_rds_decoder_active();
-}
-
-void receiver::reset_rds_parser(void)
-{
-    rx->reset_rds_parser();
 }
 
 std::string receiver::escape_filename(std::string filename)

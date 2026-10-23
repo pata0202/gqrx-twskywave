@@ -79,18 +79,14 @@ public:
         RX_DEMOD_NONE  = 1,  /*!< No demod. Raw I/Q to audio. */
         RX_DEMOD_AM    = 2,  /*!< Amplitude modulation. */
         RX_DEMOD_NFM   = 3,  /*!< Frequency modulation. */
-        RX_DEMOD_WFM_M = 4,  /*!< Frequency modulation (wide, mono). */
-        RX_DEMOD_WFM_S = 5,  /*!< Frequency modulation (wide, stereo). */
-        RX_DEMOD_WFM_S_OIRT = 6,  /*!< Frequency modulation (wide, stereo oirt). */
         RX_DEMOD_SSB   = 7,  /*!< Single Side Band. */
         RX_DEMOD_AMSYNC = 8  /*!< Amplitude modulation (synchronous demod). */
     };
 
     /** Supported receiver types. */
     enum rx_chain {
-        RX_CHAIN_NONE  = 0,   /*!< No receiver, just spectrum analyzer. */
-        RX_CHAIN_NBRX  = 1,   /*!< Narrow band receiver (AM, FM, SSB). */
-        RX_CHAIN_WFMRX = 2    /*!< Wide band FM receiver (for broadcast). */
+        RX_CHAIN_NONE  = 0,   /*!< No receiver (demod off). */
+        RX_CHAIN_NBRX  = 1    /*!< Narrow band receiver (AM, FM, SSB). */
     };
 
     /** Filter shape (convenience wrappers for "transition width"). */
@@ -197,13 +193,6 @@ public:
     status      stop_iq_recording();
 
     bool       is_recording_audio(void) const { return d_recording_wav; }
-
-    /* rds functions */
-    void        get_rds_data(std::string &outbuff, int &num);
-    void        start_rds_decoder(void);
-    void        stop_rds_decoder();
-    bool        is_rds_decoder_active(void) const;
-    void        reset_rds_parser(void);
 
     /* utility functions */
     static std::string escape_filename(std::string filename);
