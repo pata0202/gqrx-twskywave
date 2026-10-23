@@ -218,39 +218,10 @@ QT_LOGGING_RULES="*.debug=true;qt.*.debug=false" ./src/gqrx
 ```
 
 
-授權與致謝
-----------
+授權
+----
 
-依 GNU General Public License 第 3 版（或更新版本）授權，見 [COPYING](COPYING)。
-部分原始碼改寫自 Moe Weatley 的 Cutesdr，採 Simplified BSD 授權，見
-[LICENSE-CTK](LICENSE-CTK)。
+依 GNU General Public License 第 3 版（或更新版本）授權，全文見 [COPYING](COPYING)。
+AGC 程式碼改寫自 Moe Wheatley 的 Cutesdr，另採 Simplified BSD 授權。
 
-Gqrx 由 Alexandru Csete OZ9AEC 設計與撰寫。雜訊抑制器改寫自 DTTSP。
-
-<details>
-<summary>Gqrx 原始貢獻者</summary>
-
-Alex Grinkov、Alexander Fasching、Andrea Merello、Andrea Montefusco IW0HDV、
-Andy Sloane、Anthony Willard、Anton Blanchard、AsciiWolf、Bastian Bloessl、
-Ben Reese、Bob McGwier N4HY、Brandonn Etheve、charlylima、Chris Kuethe、
-Christian Lindner DL2VCL、Clayton Smith VE3IRR、Dallas Epperson、Daniil Cherednik、
-Darin Franklin、Davide Gerhard、Dominic Chen、Doron Behar、Doug Hammond、
-Edouard Lafargue、Elias Önal、Federico Fuga、Frank Brickle AB2KT、
-Frank Werner-Krippendorf HB9FXQ、Ganael Laplanche、Gisle Vanem、
-Göran Weinholt SA6CJK、Grigory Shipunov、Gwenhael Goavec-Merou、Herman Semenov、
-James Yuzawa、Jaroslav Škarvada、Jeff Long、Jiawei Chen、Jiří Pinkava、
-Joachim Schueth DL2KCD、Jon Bergli Heier、Josh Blum、Kate Adams、
-Kenji Rikitake JJ1BDX、Kitware Inc.、Konrad Beckmann、Luna Gräfje、luzpaz、
-Marco Savelli、Markus Kolb、Michael Dickens、Michael Lass、Michael Tatarinov、
-Moe Weatley、Nadeem Hasan、Nate Temple、Nick Robinson KE5YWP、Nokia、
-Oliver Grossmann DH2WQ、Pavel Milanes CO7WT、Pavel Stano、Phil Vachon、
-Radoslav Gerganov、Rob Frohne、Ron Economos W6RZ、Ruslan Migirov、
-Russell Dwarshuis KB8U、Ryan Volz、Shuyuan Liu、Stefano Leucci、Sultan Qasim Khan、
-Sylvain Munaut、Tarmo Tanilsoo、Tomasz Lemiech、Timothy Reaves、Valentin Ochs、
-Vesa Solonen、Vincent Pelletier、Vladisslav P、Will Scales、Wolfgang Fritz DK7OB、
-Youssef Touil、Zero_Chaos。
-
-另感謝 Volker Schroer 與 Alexey Bazhin 為 GNU Radio 和 Gqrx 加入 Funcube Dongle
-Pro+ 支援。
-
-</details>
+原作者、Gqrx 貢獻者名單與第三方授權全文見 [CREDITS.md](CREDITS.md)。
